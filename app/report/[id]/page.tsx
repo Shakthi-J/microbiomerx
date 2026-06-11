@@ -48,9 +48,6 @@ const NAV_GROUPS = [
   { label: 'Resistance', items: [
     { section: 'antibiotic', label: 'Antibiotic' },
   ]},
-  { label: 'Recommendations', items: [
-    { section: 'nutrition', label: 'Nutrition Recommendation' },
-  ]},
 ]
 
 // Icons for each action card
@@ -254,21 +251,7 @@ export default function ReportPage() {
             <p className="text-xs font-mono uppercase tracking-widest" style={{ color: '#9CA3AF' }}>
               Clinical Report
             </p>
-            <div className="flex gap-3 items-center">
-              <ReportPdfActions reportId={report.id} />
-              <button
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all"
-                style={{ background: '#FFFFFF', border: '1px solid #E2F3D0', color: '#4B5563' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F8FAF6' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#FFFFFF' }}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                Share
-              </button>
-            </div>
+            <ReportPdfActions reportId={report.id} />
           </div>
 
           {!rd && (
