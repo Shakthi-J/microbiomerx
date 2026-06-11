@@ -14,8 +14,6 @@ type PatientForm = {
 
 type StepStatus = 'pending' | 'active' | 'done' | 'error'
 
-// Step 4 (dietary phases) removed — nutrition extraction now happens inside
-// extractFromPDF (lib/extractSpecies.ts) and is attached to reportData.nutrition
 const STEPS = [
   'Reading patient details',
   'Reading PDF pages',
@@ -59,7 +57,6 @@ export default function UploadPage() {
     setStepStatuses(Array(4).fill('pending'))
 
     try {
-      // Step 0+1: extract species + nutrition (nutrition runs inside extractFromPDF)
       setStep(0, 'active')
       const result = await extractFromPDF(f)
       setStep(0, 'done')
@@ -73,7 +70,6 @@ export default function UploadPage() {
       setSpecies(result.species)
       setStep(1, 'done')
 
-      // Step 2: report sections
       setStep(2, 'active')
       if (result.reportData) {
         setReportData(result.reportData)
@@ -82,7 +78,6 @@ export default function UploadPage() {
         setStep(2, 'error')
       }
 
-      // Step 3: patient form
       setStep(3, 'active')
       const p = result.patient
       if (p?.name) {
@@ -120,15 +115,12 @@ export default function UploadPage() {
     if (!form.name.trim()) { setError('Patient name is required.'); return }
     if (species.length < 3) { setError('Not enough species detected.'); return }
     setSaving(true); setError(null)
+
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not logged in')
 
-      // Log what nutrition data we have before saving
-      const nutritionKey = reportData?.nutrition ? 'nutrition' : reportData?.nutrition_data ? 'nutrition_data' : null
-      console.log('[upload] saving report, nutrition key:', nutritionKey,
-        nutritionKey ? Object.keys(reportData[nutritionKey]).length + ' categories' : 'none')
-
+      // ── 1. Write report to DB ────────────────────────────────────────────
       const { data, error: dbError } = await supabase
         .from('reports')
         .insert({
@@ -146,16 +138,23 @@ export default function UploadPage() {
 
       if (dbError) throw dbError
 
+      // ── 2. Navigate immediately — don't block on PDF upload ──────────────
+      // PDF is only needed when the doctor clicks "View PDF", not at page load.
+      router.push(`/report/${data.id}`)
+
+      // ── 3. Upload PDF in the background after navigation ─────────────────
       if (file) {
-        await uploadReportPdf(data.id, file)
+        uploadReportPdf(data.id, file).catch(err =>
+          console.warn('[upload] background PDF upload failed:', err)
+        )
       }
 
-      router.push(`/report/${data.id}`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save')
-    } finally {
       setSaving(false)
     }
+    // Note: setSaving(false) intentionally omitted on success —
+    // the component unmounts on navigation so it doesn't matter.
   }
 
   const StepIcon = ({ status }: { status: StepStatus }) => {
@@ -165,7 +164,6 @@ export default function UploadPage() {
     return <div className="w-5 h-5 rounded-full border-2 border-gray-200 flex-shrink-0" />
   }
 
-  // food count from whichever key nutrition was saved under
   const nutritionObj = reportData?.nutrition ?? reportData?.nutrition_data
   const foodCount = nutritionObj
     ? Object.values(nutritionObj as Record<string, Record<string, unknown>>)
@@ -235,14 +233,12 @@ export default function UploadPage() {
                   </span>
                 </div>
               ))}
-              {/* Nutrition status line — shown after done */}
               {done && (
                 <div className="flex items-center gap-3 pt-1 border-t border-[#E2F3D0] mt-1">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${foodCount > 0 ? 'bg-[#E2F3D0]' : 'bg-amber-100 border border-amber-300'}`}>
                     {foodCount > 0
                       ? <svg className="w-3 h-3 text-[#538A22]" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      : <span className="text-amber-600 text-xs font-bold">!</span>
-                    }
+                      : <span className="text-amber-600 text-xs font-bold">!</span>}
                   </div>
                   <span className={`text-xs ${foodCount > 0 ? 'text-gray-700' : 'text-amber-600'}`}>
                     {foodCount > 0
