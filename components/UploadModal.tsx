@@ -219,19 +219,6 @@ export default function UploadModal({ initialFile, onClose }: UploadModalProps) 
           ))}
 
           {/* Nutrition status line */}
-          {done && (
-            <div className="flex items-center gap-3 pt-1 border-t border-[#E2F3D0] mt-1">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0
-                ${foodCount > 0 ? 'bg-[#E2F3D0]' : 'bg-amber-100 border border-amber-300'}`}>
-                {foodCount > 0
-                  ? <svg className="w-3 h-3 text-[#538A22]" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  : <span className="text-amber-600 text-xs font-bold">!</span>}
-              </div>
-              <span className={`text-xs font-mono ${foodCount > 0 ? 'text-[#538A22]' : 'text-amber-500'}`}>
-                {foodCount > 0 ? `${foodCount} foods extracted` : 'Nutrition data unavailable'}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Patient form */}

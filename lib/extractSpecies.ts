@@ -63,6 +63,9 @@ const KNOWN_GENERA = [
   'Parasutterella','Rothia','Sutterella','Turicibacter',
 ]
 
+// ── Nutrition trigger keywords — only pages with these get operatorList ───────
+const NUTRITION_TRIGGERS = ['NUTRITIONAL', 'Greens', 'Vegetables', 'Legumes', 'Cereals']
+
 function extractSpeciesFromText(text: string): string[] {
   const speciesFound = new Set<string>()
   for (const genus of KNOWN_GENERA) {
@@ -77,8 +80,58 @@ function extractSpeciesFromText(text: string): string[] {
   return Array.from(speciesFound)
 }
 
-// ── UPDATED: added operatorList field ────────────────────────────────────────
 type PageData = { text: string; words: any[]; operatorList?: any }
+
+// ── Process a single page — text only, no operatorList ───────────────────────
+async function extractPageText(
+  pdf: any,
+  pageNum: number
+): Promise<{ text: string; words: any[] }> {
+  const page    = await pdf.getPage(pageNum)
+  const content = await page.getTextContent()
+  const items   = content.items as any[]
+
+  const lineMap = new Map<number, string[]>()
+  const words: any[] = []
+
+  for (const item of items) {
+    if (!item.str?.trim()) continue
+    const y = Math.round(item.transform?.[5] || 0)
+    const x = item.transform?.[4] || 0
+    const top = item.transform?.[5] || 0
+
+    if (!lineMap.has(y)) lineMap.set(y, [])
+    lineMap.get(y)!.push(item.str)
+
+    const wordTokens = item.str.trim().split(/\s+/)
+    let xOffset = x
+    for (const token of wordTokens) {
+      if (token) {
+        words.push({ text: token, x0: xOffset, top: 850 - top })
+        xOffset += token.length * 4
+      }
+    }
+  }
+
+  const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a)
+  let text = ''
+  for (const y of sortedYs) {
+    const line = lineMap.get(y)!.join(' ').trim()
+    if (line) text += line + '\n'
+  }
+
+  return { text: text + '\n', words }
+}
+
+// ── Fetch operatorList for a single page (nutrition pages only) ───────────────
+async function attachOperatorList(pdf: any, pageNum: number): Promise<any> {
+  try {
+    const page = await pdf.getPage(pageNum)
+    return await page.getOperatorList()
+  } catch {
+    return undefined
+  }
+}
 
 async function getPDFData(file: File): Promise<{ fullText: string; pages: PageData[] }> {
   const pdfjsLib = await import('pdfjs-dist')
@@ -88,61 +141,47 @@ async function getPDFData(file: File): Promise<{ fullText: string; pages: PageDa
   ).toString()
 
   const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  const pdf         = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
 
-  let fullText = ''
-  const pages: PageData[] = []
+  // ── Pass 1: extract text from ALL pages in parallel ──────────────────────
+  const textResults = await Promise.all(
+    Array.from({ length: pdf.numPages }, (_, i) => extractPageText(pdf, i + 1))
+  )
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const content = await page.getTextContent()
-    const items = content.items as any[]
+  const fullText = textResults.map(r => r.text).join('')
 
-    // Group by Y for text
-    const lineMap = new Map<number, string[]>()
-    const words: any[] = []
-
-    for (const item of items) {
-      if (!item.str?.trim()) continue
-      const y = Math.round(item.transform?.[5] || 0)
-      const x = item.transform?.[4] || 0
-      const top = item.transform?.[5] || 0
-
-      if (!lineMap.has(y)) lineMap.set(y, [])
-      lineMap.get(y)!.push(item.str)
-
-      // Build word objects for column detection
-      const wordTokens = item.str.trim().split(/\s+/)
-      let xOffset = x
-      for (const token of wordTokens) {
-        if (token) {
-          words.push({ text: token, x0: xOffset, top: 850 - top }) // flip y
-          xOffset += token.length * 4 // approximate
-        }
-      }
+  // ── Pass 2: fetch operatorList ONLY for nutrition pages, also in parallel ─
+  // Patch nutrition trigger before checking so split text items are caught
+  const patchedTexts = textResults.map(r => {
+    let text = r.text
+    if (!text.includes('NUTRITIONAL REPORT') && text.includes('NUTRITIONAL') && text.includes('REPORT')) {
+      text = text.replace('NUTRITIONAL', 'NUTRITIONAL REPORT')
     }
+    return text
+  })
 
-    const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a)
-    let pageText = ''
-    for (const y of sortedYs) {
-      const lineText = lineMap.get(y)!.join(' ').trim()
-      if (lineText) pageText += lineText + '\n'
-    }
-    pageText += '\n'
-    fullText += pageText
+  const nutritionPageIndices = patchedTexts
+    .map((text, i) => ({ i, isNutrition: NUTRITION_TRIGGERS.some(t => text.includes(t)) }))
+    .filter(p => p.isNutrition)
+    .map(p => p.i)
 
-    // ── NEW: fetch operatorList for nutrition dot extraction ─────────────────
-    // Required by extractNutritionFromPages() in parse-report/route.ts.
-    // Non-critical — if it fails, nutrition extraction is skipped for this page.
-    let operatorList: any = undefined
-    try {
-      operatorList = await page.getOperatorList()
-    } catch {
-      // silently skip
-    }
+  console.log(`[getPDFData] ${pdf.numPages} pages total, ${nutritionPageIndices.length} nutrition pages`)
 
-    pages.push({ text: pageText, words, operatorList })
-  }
+  // Fetch operator lists for nutrition pages only — all in parallel
+  const operatorListMap = new Map<number, any>()
+  await Promise.all(
+    nutritionPageIndices.map(async (idx) => {
+      const opList = await attachOperatorList(pdf, idx + 1)
+      if (opList) operatorListMap.set(idx, opList)
+    })
+  )
+
+  // ── Assemble final pages array ────────────────────────────────────────────
+  const pages: PageData[] = textResults.map((r, i) => ({
+    text:         patchedTexts[i],
+    words:        r.words,
+    operatorList: operatorListMap.get(i),
+  }))
 
   return { fullText, pages }
 }
@@ -159,82 +198,64 @@ function buildPatientForm(data: ReportData | null): ExtractedPatient {
 }
 
 export async function extractFromPDF(file: File): Promise<PDFExtractResult> {
-  const { fullText, pages } = await getPDFData(file)
+  // ── PDF parsing + API call run concurrently ───────────────────────────────
+  // getPDFData is now fast (parallel pages), so we start it and the API call together
+  const pdfDataPromise = getPDFData(file)
+
+  // Wait for PDF data first (needed to build the API body)
+  const { fullText, pages } = await pdfDataPromise
 
   const speciesFromText = extractSpeciesFromText(fullText)
 
-  // ── Extract nutrition client-side (operatorList can't survive JSON serialisation) ──
-  let nutritionData: Record<string, Record<string, [string, string, string]>> | null = null
-  try {
-    console.log('[extractFromPDF] starting nutrition extraction, pages:', pages.length)
-    const { extractNutritionFromPages } = await import('./extractNutrition')
-    console.log('[extractFromPDF] extractNutritionFromPages imported OK')
-
-    // BugSpeaks splits 'NUTRITIONAL REPORT' across two text items at slightly different Y.
-    // Patch each page's text to ensure the trigger string is present if both words exist.
-    const patchedPages = pages.map(p => {
-      let text = p.text
-      if (
-        !text.includes('NUTRITIONAL REPORT') &&
-        text.includes('NUTRITIONAL') &&
-        text.includes('REPORT')
-      ) {
-        text = text.replace('NUTRITIONAL', 'NUTRITIONAL REPORT')
+  // ── Nutrition extraction + API call run concurrently ─────────────────────
+  const [nutritionData, reportDataRaw] = await Promise.all([
+    // Nutrition extraction (client-side, uses operatorList)
+    (async () => {
+      try {
+        const { extractNutritionFromPages } = await import('./extractNutrition')
+        const result = extractNutritionFromPages(pages) as Record<string, Record<string, [string, string, string]>> | null
+        console.log('[extractFromPDF] nutrition:', result ? Object.keys(result).length + ' categories' : 'null')
+        return result
+      } catch (e) {
+        console.error('[extractFromPDF] nutrition failed:', e instanceof Error ? e.message : String(e))
+        return null
       }
-      // Also handle 'Greens & Vegetables' as fallback trigger
-      return { ...p, text }
-    })
+    })(),
 
-    // Debug: show what pages contain nutrition-related text
-    const nutritionPageNums = patchedPages
-      .map((p, i) => ({ i, hasNutritional: p.text.includes('NUTRITIONAL'), hasGreens: p.text.includes('Greens'), hasReport: p.text.includes('NUTRITIONAL REPORT') }))
-      .filter(p => p.hasNutritional || p.hasGreens)
-    console.log('[extractFromPDF] nutrition-related pages:', nutritionPageNums)
-    if (nutritionPageNums.length > 0) {
-      const idx = nutritionPageNums[0].i
-      console.log('[extractFromPDF] page', idx, 'text sample:', patchedPages[idx].text.slice(0, 300))
-      console.log('[extractFromPDF] page', idx, 'has operatorList:', !!patchedPages[idx].operatorList, 'fnArray length:', patchedPages[idx].operatorList?.fnArray?.length ?? 0)
-    }
-
-    nutritionData = extractNutritionFromPages(patchedPages) as Record<string, Record<string, [string, string, string]>> | null
-    console.log('[extractFromPDF] nutrition extracted:', nutritionData ? Object.keys(nutritionData).length + ' categories' : 'null')
-  } catch (e) {
-    console.error('[extractFromPDF] nutrition extraction FAILED:', e instanceof Error ? e.message : String(e))
-  }
-
-  // Strip operatorList before JSON serialisation — it contains non-serialisable objects
-  const pagesForAPI = pages.map(({ text, words }) => ({ text, words }))
-
-  let reportData: ReportData | null = null
-
-  try {
-    const res = await fetch('/api/parse-report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: fullText, pages: pagesForAPI }),
-    })
-    if (res.ok) {
-      const json = await res.json()
-      reportData = json.data
-
-      if (reportData) {
-        if (reportData.species_list?.length > 0) {
-          const allSpecies = new Set([...speciesFromText, ...reportData.species_list])
-          reportData.species_list = Array.from(allSpecies)
-        } else {
-          reportData.species_list = speciesFromText
-        }
-        // Attach client-side nutrition extraction result
-        if (nutritionData && Object.keys(nutritionData).length > 0) {
-          ;(reportData as any).nutrition = nutritionData
-        }
+    // API call for full report parsing (runs at same time as nutrition)
+    (async () => {
+      try {
+        const pagesForAPI = pages.map(({ text, words }) => ({ text, words }))
+        const res = await fetch('/api/parse-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: fullText, pages: pagesForAPI }),
+        })
+        if (!res.ok) return null
+        const json = await res.json()
+        return json.data as ReportData | null
+      } catch {
+        return null
       }
-    }
-  } catch {
-    reportData = null
-  }
+    })(),
+  ])
 
-  if (!reportData) {
+  // ── Merge results ─────────────────────────────────────────────────────────
+  let reportData: ReportData | null = reportDataRaw
+
+  if (reportData) {
+    // Merge species
+    if (reportData.species_list?.length > 0) {
+      reportData.species_list = Array.from(new Set([...speciesFromText, ...reportData.species_list]))
+    } else {
+      reportData.species_list = speciesFromText
+    }
+    // Attach nutrition
+    if (nutritionData && Object.keys(nutritionData).length > 0) {
+      ;(reportData as any).nutrition = nutritionData
+    }
+  } else {
+    // Fallback if API failed
     reportData = {
       patient: null, rych_index: null, scfa: {}, vitamins: {},
       neurotransmitters: {}, macronutrients: {}, gut_function: {},

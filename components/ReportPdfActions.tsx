@@ -7,30 +7,53 @@ import { usePdfPanel } from '@/lib/PdfPanelContext'
 
 type Props = {
   reportId: string
-  initialPdfStored?: boolean   // pass !!report.pdf_filename from parent — skips the loading flicker
+  initialPdfStored?: boolean
 }
 
 export default function ReportPdfActions({ reportId, initialPdfStored }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-  // Initialise from prop so the button renders immediately on first paint
-  const [pdfStored, setPdfStored] = useState<boolean | null>(initialPdfStored ?? null)
-  const [error, setError]         = useState<string | null>(null)
+  const [uploading,  setUploading]  = useState(false)
+  const [pdfStored,  setPdfStored]  = useState<boolean | null>(initialPdfStored ?? null)
+  const [pdfPending, setPdfPending] = useState(false)
+  const [error,      setError]      = useState<string | null>(null)
   const { openPdf, closePdf, isPdfOpen } = usePdfPanel()
 
   const pdfUrl = reportPdfViewUrl(reportId)
 
-  // HEAD check still runs to confirm storage truth, but result only overrides
-  // when it contradicts the initial prop (e.g. file was deleted externally).
   useEffect(() => {
     let cancelled = false
+    let attempts  = 0
+    const MAX     = 15
+    const DELAY   = 2000
 
-    fetch(pdfUrl, { method: 'HEAD', credentials: 'include' })
-      .then(res => { if (!cancelled) setPdfStored(res.ok) })
-      .catch(() => { if (!cancelled) setPdfStored(false) })
+    async function check() {
+      if (cancelled) return
+      try {
+        const res = await fetch(pdfUrl, { method: 'HEAD', credentials: 'include' })
+        if (cancelled) return
 
+        if (res.ok) {
+          setPdfStored(true)
+          setPdfPending(false)
+          return
+        }
+
+        if (initialPdfStored && attempts < MAX) {
+          attempts++
+          setPdfPending(true)
+          setTimeout(check, DELAY)
+        } else {
+          setPdfStored(false)
+          setPdfPending(false)
+        }
+      } catch {
+        if (!cancelled) { setPdfStored(false); setPdfPending(false) }
+      }
+    }
+
+    check()
     return () => { cancelled = true }
-  }, [pdfUrl])
+  }, [pdfUrl, initialPdfStored])
 
   const handleFile = async (f: File) => {
     if (!f.name.toLowerCase().endsWith('.pdf')) {
@@ -42,6 +65,7 @@ export default function ReportPdfActions({ reportId, initialPdfStored }: Props) 
     try {
       await uploadReportPdf(reportId, f)
       setPdfStored(true)
+      setPdfPending(false)
       if (isPdfOpen) closePdf()
       openPdf(`${pdfUrl}?t=${Date.now()}`)
     } catch (e: unknown) {
@@ -53,10 +77,26 @@ export default function ReportPdfActions({ reportId, initialPdfStored }: Props) 
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="flex gap-2">
-        {pdfStored === true ? (
+      <div className="flex gap-2 items-center">
+
+        {/* Confirmed in storage → show toggle button */}
+        {pdfStored === true && !pdfPending && (
           <PdfToggleButton pdfUrl={pdfUrl} variant="header" />
-        ) : pdfStored === false ? (
+        )}
+
+        {/* Background upload still in flight → spinner only, nothing clickable */}
+        {pdfPending && (
+          <div
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium"
+            style={{ background: '#F2F9EC', border: '1px solid #E2F3D0', color: '#538A22' }}
+          >
+            <div className="w-3 h-3 rounded-full border-2 border-[#538A22] border-t-transparent animate-spin" />
+            PDF uploading…
+          </div>
+        )}
+
+        {/* No PDF and not pending → "Add PDF" (only for reports where doctor skipped upload) */}
+        {pdfStored === false && !pdfPending && (
           <>
             <button
               type="button"
@@ -79,7 +119,10 @@ export default function ReportPdfActions({ reportId, initialPdfStored }: Props) 
               }}
             />
           </>
-        ) : null}
+        )}
+
+        {/* null = still doing first HEAD check → show nothing */}
+
       </div>
       {error && (
         <p className="text-[10px] text-red-600 font-mono max-w-xs text-right">{error}</p>
