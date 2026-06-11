@@ -22,7 +22,6 @@ type Report = {
   recommendations: any
 }
 
-
 const NAV_GROUPS = [
   { label: 'Clinical overview', items: [
     { section: 'rych-index',        label: 'Rych Index' },
@@ -49,11 +48,38 @@ const NAV_GROUPS = [
   { label: 'Resistance', items: [
     { section: 'antibiotic', label: 'Antibiotic' },
   ]},
-  // ← NEW GROUP
   { label: 'Recommendations', items: [
     { section: 'nutrition', label: 'Nutrition Recommendation' },
   ]},
 ]
+
+// Icons for each action card
+function IconPackage() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+    </svg>
+  )
+}
+
+function IconTraining() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+    </svg>
+  )
+}
+
+function IconDiet() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0v1.5a3 3 0 01-3 3H9a3 3 0 01-3-3V10.5m12 0v-2.25A2.25 2.25 0 0015.75 6h-7.5A2.25 2.25 0 006 8.25V10.5" />
+    </svg>
+  )
+}
 
 export default function ReportPage() {
   const params   = useParams()
@@ -112,7 +138,6 @@ export default function ReportPage() {
           <div className="rounded-2xl p-4 space-y-2"
             style={{ background: '#FFFFFF', border: '1px solid #C8E9A8' }}>
 
-            {/* Name */}
             <div className="rounded-xl px-3 py-2"
               style={{ background: '#F8FAF6', border: '1px solid #E2F3D0' }}>
               <p className="text-[9px] font-mono uppercase tracking-widest mb-0.5"
@@ -122,7 +147,6 @@ export default function ReportPage() {
               </p>
             </div>
 
-            {/* Age/Sex + Patient ID */}
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl px-3 py-2"
                 style={{ background: '#F8FAF6', border: '1px solid #E2F3D0' }}>
@@ -142,7 +166,6 @@ export default function ReportPage() {
               </div>
             </div>
 
-            {/* Rych score */}
             {score != null && (
               <div className="rounded-xl px-3 py-2 flex items-center justify-between"
                 style={{ background: '#F8FAF6', border: '1px solid #E2F3D0' }}>
@@ -224,14 +247,14 @@ export default function ReportPage() {
 
       {/* ── Main content ── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-8 lg:px-10">
+        <div className="max-w-4xl mx-auto px-8 py-8">
 
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+          {/* ── Page header ── */}
+          <div className="flex justify-between items-center mb-10">
             <p className="text-xs font-mono uppercase tracking-widest" style={{ color: '#9CA3AF' }}>
               Clinical Report
             </p>
-            <div className="flex gap-3 items-start">
+            <div className="flex gap-3 items-center">
               <ReportPdfActions reportId={report.id} />
               <button
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all"
@@ -255,64 +278,144 @@ export default function ReportPage() {
             </div>
           )}
 
-          {/* Quick action cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {[
-              { section: 'packages', title: 'Package Recommendation',  desc: 'Probiotic & supplement packages' },
-              { section: 'training', title: 'Training Recommendation', desc: 'Exercise protocol based on gut profile' },
-            ].map(m => (
-              <Link
-                key={m.section}
-                href={`/report/${id}/${m.section}`}
-                className="flex flex-col p-6 rounded-2xl transition-all"
-                style={{ background: '#FFFFFF', border: '1px solid #E2F3D0' }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = '#C8E9A8'
-                  e.currentTarget.style.background  = '#F8FAF6'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#E2F3D0'
-                  e.currentTarget.style.background  = '#FFFFFF'
-                }}
-              >
-                <p className="text-sm font-semibold mb-1" style={{ color: '#1A3207' }}>{m.title}</p>
-                <p className="text-xs" style={{ color: '#6B7280' }}>{m.desc}</p>
-              </Link>
-            ))}
-          </div>
+          {/* ── Section label ── */}
+          <p className="text-[10px] font-mono uppercase tracking-widest mb-4" style={{ color: '#538A22' }}>
+            Care Recommendations
+          </p>
 
-          {/* Dietary prescription */}
-          <div className="flex items-center justify-between p-6 rounded-2xl mb-8"
-            style={{ background: '#FFFFFF', border: '1px solid #E2F3D0' }}>
-            <div>
-              <p className="text-sm font-semibold mb-1" style={{ color: '#1A3207' }}>Dietary Prescription</p>
-              <p className="text-xs" style={{ color: '#6B7280' }}>AI-generated species-specific meal plan</p>
-            </div>
+          {/* ── 3 action cards in one even row ── */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+
+            {/* Package Recommendation */}
+            <Link
+              href={`/report/${id}/packages`}
+              className="group flex flex-col gap-4 p-5 rounded-2xl transition-all"
+              style={{ background: '#FFFFFF', border: '1px solid #E2F3D0' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#C8E9A8'
+                e.currentTarget.style.background  = '#F8FAF6'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#E2F3D0'
+                e.currentTarget.style.background  = '#FFFFFF'
+              }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: '#E2F3D0', color: '#538A22' }}>
+                <IconPackage />
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-1 leading-snug" style={{ color: '#1A3207' }}>
+                  Package Recommendation
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: '#6B7280' }}>
+                  Probiotic &amp; supplement packages
+                </p>
+              </div>
+              <div className="mt-auto flex items-center gap-1 text-xs font-medium"
+                style={{ color: '#538A22' }}>
+                View
+                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+
+            {/* Training Recommendation */}
+            <Link
+              href={`/report/${id}/training`}
+              className="group flex flex-col gap-4 p-5 rounded-2xl transition-all"
+              style={{ background: '#FFFFFF', border: '1px solid #E2F3D0' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#C8E9A8'
+                e.currentTarget.style.background  = '#F8FAF6'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#E2F3D0'
+                e.currentTarget.style.background  = '#FFFFFF'
+              }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: '#E2F3D0', color: '#538A22' }}>
+                <IconTraining />
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-1 leading-snug" style={{ color: '#1A3207' }}>
+                  Training Recommendation
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: '#6B7280' }}>
+                  Exercise protocol based on gut profile
+                </p>
+              </div>
+              <div className="mt-auto flex items-center gap-1 text-xs font-medium"
+                style={{ color: '#538A22' }}>
+                View
+                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+
+            {/* Dietary Prescription */}
             <Link
               href={`/report/${id}/dietary-rx`}
-              className="px-6 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
-              style={{ background: '#538A22' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#3D6B16' }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#538A22' }}
+              className="group flex flex-col gap-4 p-5 rounded-2xl transition-all"
+              style={{ background: '#538A22', border: '1px solid #538A22' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background  = '#3D6B16'
+                e.currentTarget.style.borderColor = '#3D6B16'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background  = '#538A22'
+                e.currentTarget.style.borderColor = '#538A22'
+              }}
             >
-              Generate →
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.15)', color: '#FFFFFF' }}>
+                <IconDiet />
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-1 leading-snug" style={{ color: '#FFFFFF' }}>
+                  Dietary Prescription
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  AI-generated species-specific meal plan
+                </p>
+              </div>
+              <div className="mt-auto flex items-center gap-1 text-xs font-medium"
+                style={{ color: 'rgba(255,255,255,0.9)' }}>
+                Generate
+                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             </Link>
           </div>
 
+          {/* ── AI Recommendations Panel ── */}
           {rd && (
-            <RecommendationsPanel
-              reportId={report.id}
-              reportData={rd}
-              existingRecs={report.recommendations || null}
-              patient={{
-                name:            report.patient_name,
-                age_sex:         report.patient_age_sex,
-                diet_type:       report.patient_diet,
-                medical_history: report.patient_history,
-                allergies:       report.patient_allergies,
-              }}
-            />
+            <div className="mt-8">
+              <p className="text-[10px] font-mono uppercase tracking-widest mb-4" style={{ color: '#538A22' }}>
+                AI Recommendation Engine
+              </p>
+              <RecommendationsPanel
+                reportId={report.id}
+                reportData={rd}
+                existingRecs={report.recommendations || null}
+                patient={{
+                  name:            report.patient_name,
+                  age_sex:         report.patient_age_sex,
+                  diet_type:       report.patient_diet,
+                  medical_history: report.patient_history,
+                  allergies:       report.patient_allergies,
+                }}
+              />
+            </div>
           )}
+
         </div>
       </div>
     </div>
