@@ -1,12 +1,13 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+
+import { useMemo, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { SectionHeader } from '@/components/SectionHeader'
 import SectionAiPanel from '@/components/SectionAiPanel'
 import SectionPageShell, { SectionLoading } from '@/components/SectionPageShell'
 import { buildAiContextFields, useSectionAnalysis, useSectionReport } from '@/lib/sectionPage'
-// ─── Types ───────────────────────────────────────────────────────────────────
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SCFAItem {
   name: string
@@ -27,54 +28,24 @@ interface SCFAData {
   caproate?: number
 }
 
-interface Report {
-  id: string
-  patient_name: string
-  patient_age_sex: string
-  patient_complaint?: string
-  patient_diet?: string
-  patient_history?: string
-  patient_allergies?: string
-  report_data: {
-    scfa?: SCFAData
-    [key: string]: unknown
-  }
-}
-
-interface ContributingFactor {
-  factor: string
-  explanation: string
-  impact: 'positive' | 'negative' | 'neutral'
-}
-
-interface Analysis {
-  interpretation: string
-  clinical_significance: string
-  contributing_factors?: ContributingFactor[]
-  what_drives_it?: string
-  considerations?: string[]
-}
-
-// ─── Reference ranges pulled from BugSpeaks report format ────────────────────
-// These are the population optimal ranges (low_ref–high_ref = green zone)
-// Scores below low_ref = Low (orange), above high_ref = High/Atypical (red)
+// ─── Reference ranges ─────────────────────────────────────────────────────────
 
 const SCFA_REFS: Record<string, { label: string; low_ref: number; high_ref: number; clinical_note: string }> = {
-  acetate:           { label: 'Acetate',               low_ref: 71.72, high_ref: 88.54, clinical_note: 'Primary energy source for peripheral tissues; produced by Bifidobacterium and Bacteroides. Low levels suggest reduced fibre fermentation.' },
-  propionate:        { label: 'Propionate',             low_ref: 53.96, high_ref: 68.416, clinical_note: 'Signals satiety via gut-brain axis; supports hepatic gluconeogenesis. Elevated levels may suppress acetate and butyrate production.' },
-  butyrate:          { label: 'Butyrate',               low_ref: 59.94, high_ref: 71.932, clinical_note: 'Primary fuel for colonocytes; anti-inflammatory, strengthens gut barrier (tight junctions), inhibits colorectal cancer cell proliferation.' },
-  isobutyric_acid:   { label: 'Isobutyric Acid',        low_ref: 63.2,  high_ref: 78.218, clinical_note: 'Branched-chain SCFA from protein fermentation. Low levels indicate reduced proteolytic fermentation.' },
-  valeric_acid:      { label: 'Valeric Acid',           low_ref: 71.05, high_ref: 98.24,  clinical_note: 'Emerging SCFA linked to anti-inflammatory activity. Significantly low — may reflect a depleted Lachnospiraceae population.' },
-  isovaleric_acid:   { label: 'Isovaleric Acid',        low_ref: 48.48, high_ref: 63.065, clinical_note: 'Branched-chain SCFA produced from leucine/valine catabolism. Low levels suggest limited amino acid fermentation.' },
-  methylbutyric_acid:{ label: '2-Methylbutyric Acid',   low_ref: 25.36, high_ref: 62.06,  clinical_note: 'Above-optimal branched-chain SCFA. High levels may indicate excess protein fermentation in the colon — a sign of proteolytic dysbiosis.' },
-  formate:           { label: 'Formate',                low_ref: 61.58, high_ref: 74.429, clinical_note: 'One-carbon unit donor; involved in nucleotide synthesis. Elevated formate may reflect increased Prevotella activity (matches high Prevotella copri abundance).' },
-  caproate:          { label: 'Caproate (Hexanoate)',   low_ref: 43.31, high_ref: 71.124, clinical_note: 'Medium-chain fatty acid with antimicrobial properties; can be cytotoxic to colonocytes at high levels.' },
+  acetate:           { label: 'Acetate',              low_ref: 71.72, high_ref: 88.54,  clinical_note: 'Primary energy source for peripheral tissues; produced by Bifidobacterium and Bacteroides. Low levels suggest reduced fibre fermentation.' },
+  propionate:        { label: 'Propionate',            low_ref: 53.96, high_ref: 68.416, clinical_note: 'Signals satiety via gut-brain axis; supports hepatic gluconeogenesis. Elevated levels may suppress acetate and butyrate production.' },
+  butyrate:          { label: 'Butyrate',              low_ref: 59.94, high_ref: 71.932, clinical_note: 'Primary fuel for colonocytes; anti-inflammatory, strengthens gut barrier (tight junctions), inhibits colorectal cancer cell proliferation.' },
+  isobutyric_acid:   { label: 'Isobutyric Acid',       low_ref: 63.2,  high_ref: 78.218, clinical_note: 'Branched-chain SCFA from protein fermentation. Low levels indicate reduced proteolytic fermentation.' },
+  valeric_acid:      { label: 'Valeric Acid',          low_ref: 71.05, high_ref: 98.24,  clinical_note: 'Emerging SCFA linked to anti-inflammatory activity. Significantly low — may reflect a depleted Lachnospiraceae population.' },
+  isovaleric_acid:   { label: 'Isovaleric Acid',       low_ref: 48.48, high_ref: 63.065, clinical_note: 'Branched-chain SCFA produced from leucine/valine catabolism. Low levels suggest limited amino acid fermentation.' },
+  methylbutyric_acid:{ label: '2-Methylbutyric Acid',  low_ref: 25.36, high_ref: 62.06,  clinical_note: 'Above-optimal branched-chain SCFA. High levels may indicate excess protein fermentation in the colon — a sign of proteolytic dysbiosis.' },
+  formate:           { label: 'Formate',               low_ref: 61.58, high_ref: 74.429, clinical_note: 'One-carbon unit donor; involved in nucleotide synthesis. Elevated formate may reflect increased Prevotella activity.' },
+  caproate:          { label: 'Caproate (Hexanoate)',  low_ref: 43.31, high_ref: 71.124, clinical_note: 'Medium-chain fatty acid with antimicrobial properties; can be cytotoxic to colonocytes at high levels.' },
 }
 
-// ─── Bin classification ───────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getBin(score: number, low_ref: number, high_ref: number): 'low' | 'optimal' | 'high' {
-  if (score < low_ref) return 'low'
+  if (score < low_ref)  return 'low'
   if (score > high_ref) return 'high'
   return 'optimal'
 }
@@ -96,7 +67,7 @@ function BinBadge({ bin }: { bin: 'low' | 'optimal' | 'high' }) {
 }
 
 function SCFABar({ item }: { item: SCFAItem }) {
-  const bin = getBin(item.score, item.low_ref, item.high_ref)
+  const bin      = getBin(item.score, item.low_ref, item.high_ref)
   const barColor = bin === 'high' ? '#DC2626' : bin === 'low' ? '#EA580C' : '#538A22'
   const scorePct = Math.min(100, Math.max(0, item.score))
   const lowPct   = Math.min(100, Math.max(0, item.low_ref))
@@ -104,12 +75,10 @@ function SCFABar({ item }: { item: SCFAItem }) {
 
   return (
     <div className="relative h-3 bg-gray-100 rounded-full overflow-visible">
-      {/* Green reference range band */}
       <div
         className="absolute top-0 h-full bg-[#E2F3D0] rounded-full"
         style={{ left: `${lowPct}%`, width: `${highPct - lowPct}%` }}
       />
-      {/* Score marker */}
       <div
         className="absolute top-0 h-full w-2 rounded-full"
         style={{ left: `${scorePct}%`, background: barColor, transform: 'translateX(-50%)', zIndex: 10 }}
@@ -160,8 +129,6 @@ function SCFARow({ item, refData }: { item: SCFAItem; refData: { label: string; 
   )
 }
 
-// ─── Summary cards ────────────────────────────────────────────────────────────
-
 function SummaryCard({ label, items, color, bg }: {
   label: string; items: string[]; color: string; bg: string
 }) {
@@ -173,11 +140,8 @@ function SummaryCard({ label, items, color, bg }: {
       </p>
       <div className="flex flex-wrap gap-1.5">
         {items.map(name => (
-          <span
-            key={name}
-            className="text-xs px-2 py-0.5 rounded-full"
-            style={{ background: color + '20', color }}
-          >
+          <span key={name} className="text-xs px-2 py-0.5 rounded-full"
+            style={{ background: color + '20', color }}>
             {name}
           </span>
         ))}
@@ -186,229 +150,85 @@ function SummaryCard({ label, items, color, bg }: {
   )
 }
 
-// ─── AI Analysis panel ────────────────────────────────────────────────────────
-
-function AIAnalysisPanel({ analysis, analysing, error, onAnalyse }: {
-  analysis: Analysis | null
-  analysing: boolean
-  error: string | null
-  onAnalyse: () => void
-}) {
-  return (
-    <div className="bg-white border border-[#E2F3D0] rounded-2xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#E2F3D0] flex items-center justify-between">
-        <div>
-          <p className="text-xs font-mono text-gray-400 uppercase tracking-widest">AI Clinical Analysis</p>
-          <p className="text-xs text-gray-400 mt-0.5">SCFA interpretation based on patient scores + context</p>
-        </div>
-        <button
-          onClick={onAnalyse}
-          disabled={analysing}
-          className={`text-xs font-mono px-4 py-2 rounded-lg border transition
-            ${analysing
-              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-              : analysis
-              ? 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-              : 'bg-[#538A22] text-white border-[#538A22] hover:bg-[#3D6B16]'
-            }`}
-        >
-          {analysing ? 'Analysing…' : analysis ? 'Regenerate' : 'Analyse →'}
-        </button>
-      </div>
-
-      {!analysis && !analysing && (
-        <div className="p-8 text-center">
-          <p className="text-sm text-gray-400">
-            Click Analyse for AI-powered clinical interpretation of this patient's SCFA profile.
-          </p>
-          {error && (
-            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 text-left">
-              {error}
-            </div>
-          )}
-        </div>
-      )}
-
-      {analysing && (
-        <div className="p-8 text-center">
-          <div className="w-6 h-6 border-2 border-[#538A22] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-gray-400 font-mono">Running rules engine…</p>
-        </div>
-      )}
-
-      {analysis && !analysing && (
-        <div className="p-6 space-y-5">
-          <div>
-            <p className="text-xs font-mono text-gray-400 uppercase tracking-wide mb-2">Interpretation</p>
-            <p className="text-sm text-gray-700 leading-relaxed">{analysis.interpretation}</p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-            <p className="text-xs font-mono text-blue-600 uppercase tracking-wide mb-2">Clinical significance</p>
-            <p className="text-sm text-blue-900 leading-relaxed">{analysis.clinical_significance}</p>
-          </div>
-
-          {(analysis.contributing_factors ?? []).length > 0 && (
-            <div>
-              <p className="text-xs font-mono text-gray-400 uppercase tracking-wide mb-3">Contributing factors</p>
-              <div className="space-y-2">
-                {(analysis.contributing_factors ?? []).map((f, i) => (
-                  <div key={i} className={`flex items-start gap-3 px-4 py-3 rounded-xl border
-                    ${f.impact === 'positive' ? 'bg-[#F2F9EC] border-[#E2F3D0]'
-                      : f.impact === 'negative' ? 'bg-red-50 border-red-100'
-                      : 'bg-gray-50 border-[#E2F3D0]'}`}>
-                    <span className="flex-shrink-0 mt-0.5">
-                      {f.impact === 'positive' ? '↑' : f.impact === 'negative' ? '↓' : '→'}
-                    </span>
-                    <div>
-                      <span className={`text-xs font-medium
-                        ${f.impact === 'positive' ? 'text-green-700'
-                          : f.impact === 'negative' ? 'text-red-700'
-                          : 'text-gray-600'}`}>
-                        {f.factor}
-                      </span>
-                      <p className="text-xs text-gray-500 mt-0.5">{f.explanation}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {analysis.what_drives_it && (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-              <p className="text-xs font-mono text-amber-600 uppercase tracking-wide mb-2">What drives it</p>
-              <p className="text-sm text-amber-900 leading-relaxed">{analysis.what_drives_it}</p>
-            </div>
-          )}
-
-          {(analysis.considerations ?? []).length > 0 && (
-            <div className="space-y-2">
-              {(analysis.considerations ?? []).map((c, i) => (
-                <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                  <span className="text-[#538A22] flex-shrink-0 mt-0.5">→</span>
-                  {c}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function SCFAPage() {
-  const params = useParams()
-  const id = params.id as string
-  const router = useRouter()
+  const id = useParams().id as string
+  const { report, loading } = useSectionReport(id)
 
-  const [report, setReport] = useState<Report | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [analysing, setAnalysing] = useState(false)
-  const [analysis, setAnalysis] = useState<Analysis | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // Build the data object sent to the AI + clinical assistant
+  const getSectionData = useMemo(
+    () => (rep: { report_data: Record<string, unknown> | null }) => {
+      const raw = (rep.report_data?.scfa ?? {}) as SCFAData
+      return {
+        scfa: raw,
+        scfa_summary: Object.entries(SCFA_REFS)
+          .filter(([key]) => raw[key as keyof SCFAData] != null)
+          .map(([key, ref]) => {
+            const score = raw[key as keyof SCFAData] as number
+            return { name: ref.label, score, bin: getBin(score, ref.low_ref, ref.high_ref) }
+          }),
+      }
+    },
+    []
+  )
 
-  useEffect(() => {
-    async function load() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
+  const raw     = (report?.report_data?.scfa ?? {}) as SCFAData
+  const hasData = Object.keys(SCFA_REFS).some(k => raw[k as keyof SCFAData] != null)
 
-      const { data, error: dbErr } = await supabase
-        .from('reports')
-        .select('*')
-        .eq('id', id)
-        .single()
+  const { analysing, analysis, error, analyse } = useSectionAnalysis(
+    report,
+    'SCFA Production Potential',
+    getSectionData,
+    hasData   // ← auto-triggers analysis on load when data is present
+  )
 
-      if (dbErr || !data) { router.push('/dashboard'); return }
-      setReport(data)
-      setLoading(false)
-    }
-    load()
-  }, [id, router])
-
-  const analyse = async () => {
-    if (!report) return
-    setAnalysing(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/analyze-section', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          section: 'SCFA Production Potential',
-          report_data: report.report_data,
-          patient: {
-            name: report.patient_name,
-            age_sex: report.patient_age_sex,
-            complaint: report.patient_complaint,
-            diet_type: report.patient_diet,
-            medical_history: report.patient_history,
-            allergies: report.patient_allergies,
-          },
-          section_data: report.report_data?.scfa,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Analysis failed')
-      setAnalysis(data.analysis)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Analysis failed')
-    } finally {
-      setAnalysing(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-[#538A22] border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return <SectionLoading />
   if (!report) return null
 
-  // ── Build items array from report_data.scfa ──────────────────────────────
-
-  const raw = report.report_data?.scfa ?? {}
-
+  // ── Build items ──────────────────────────────────────────────────────────
   const items: SCFAItem[] = Object.entries(SCFA_REFS)
     .filter(([key]) => raw[key as keyof SCFAData] != null)
     .map(([key, ref]) => ({
-      name: key,
-      score: raw[key as keyof SCFAData] as number,
-      low_ref: ref.low_ref,
+      name:     key,
+      score:    raw[key as keyof SCFAData] as number,
+      low_ref:  ref.low_ref,
       high_ref: ref.high_ref,
     }))
-
-  const hasData = items.length > 0
-
-  // ── Bucketed lists for summary cards ────────────────────────────────────
 
   const lowItems     = items.filter(i => getBin(i.score, i.low_ref, i.high_ref) === 'low')
   const optimalItems = items.filter(i => getBin(i.score, i.low_ref, i.high_ref) === 'optimal')
   const highItems    = items.filter(i => getBin(i.score, i.low_ref, i.high_ref) === 'high')
+  const labelFor     = (key: string) => SCFA_REFS[key]?.label ?? key
 
-  const labelFor = (key: string) => SCFA_REFS[key]?.label ?? key
+  // ── Page data registered with the clinical assistant ────────────────────
+  const pageData = {
+    total_scfa_tracked: items.length,
+    low_count:          lowItems.length,
+    optimal_count:      optimalItems.length,
+    high_count:         highItems.length,
+    low_scfa:           lowItems.map(i => labelFor(i.name)),
+    optimal_scfa:       optimalItems.map(i => labelFor(i.name)),
+    high_scfa:          highItems.map(i => labelFor(i.name)),
+    scfa_scores:        items.map(i => ({ name: labelFor(i.name), score: i.score, bin: getBin(i.score, i.low_ref, i.high_ref) })),
+    ...buildAiContextFields(analysis, analysing, error),
+  }
 
   return (
-    <div className="max-w-3xl mx-auto py-10 px-6">
-
-      {/* Back link */}
+    <SectionPageShell
+      reportId={id}
+      section="scfa"
+      label="SCFA Production"
+      patientName={report.patient_name}
+      pageData={pageData}
+    >
       <SectionHeader reportId={id} title="SCFA Production" />
 
-      {/* Section header */}
-      <div className="flex items-start gap-3 mb-1">
-        <div>
-          <p className="text-sm text-gray-400 mt-1">
-            Current capacity of gut microbes to produce short chain fatty acids · 3-bin scoring
-          </p>
-        </div>
-      </div>
+      <p className="text-sm text-gray-400 mb-2">
+        Current capacity of gut microbes to produce short chain fatty acids · 3-bin scoring
+      </p>
 
-      <div className="mt-2 mb-8 flex items-center gap-4 text-xs font-mono text-gray-400">
+      <div className="flex items-center gap-4 text-xs font-mono text-gray-400 mb-8">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" />
           Low potential
@@ -423,7 +243,6 @@ export default function SCFAPage() {
         </span>
       </div>
 
-      {/* No data state */}
       {!hasData && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 mb-6">
           ⚠️ No SCFA data found for this report. Re-upload the PDF to extract scores.
@@ -434,79 +253,58 @@ export default function SCFAPage() {
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-3 gap-3 mb-8">
-            <SummaryCard
-              label="Low"
-              items={lowItems.map(i => labelFor(i.name))}
-              color="#EA580C"
-              bg="bg-orange-50"
-            />
-            <SummaryCard
-              label="Optimal"
-              items={optimalItems.map(i => labelFor(i.name))}
-              color="#538A22"
-              bg="bg-[#F2F9EC]"
-            />
-            <SummaryCard
-              label="High Atypical"
-              items={highItems.map(i => labelFor(i.name))}
-              color="#DC2626"
-              bg="bg-red-50"
-            />
+            <SummaryCard label="Low"          items={lowItems.map(i => labelFor(i.name))}     color="#EA580C" bg="bg-orange-50" />
+            <SummaryCard label="Optimal"      items={optimalItems.map(i => labelFor(i.name))} color="#538A22" bg="bg-[#F2F9EC]" />
+            <SummaryCard label="High Atypical" items={highItems.map(i => labelFor(i.name))}   color="#DC2626" bg="bg-red-50" />
           </div>
 
-          {/* Clinical alert — Butyrate is the most clinically important */}
+          {/* Butyrate alert */}
           {(() => {
             const butyrate = items.find(i => i.name === 'butyrate')
             if (!butyrate) return null
             const bin = getBin(butyrate.score, butyrate.low_ref, butyrate.high_ref)
-            if (bin === 'optimal') return (
+            return bin === 'optimal' ? (
               <div className="bg-[#F2F9EC] border border-[#A8D878] rounded-xl px-4 py-3 text-sm text-[#3D6B16] mb-6 flex items-start gap-2">
                 <span>✓</span>
-                <span><strong>Butyrate is in the optimal range ({butyrate.score})</strong> — primary colonocyte fuel is well supported. Focus on addressing the 4 low-production SCFAs.</span>
+                <span><strong>Butyrate is in the optimal range ({butyrate.score})</strong> — primary colonocyte fuel is well supported.</span>
               </div>
-            )
-            return (
+            ) : (
               <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 mb-6 flex items-start gap-2">
                 <span>⚠️</span>
-                <span><strong>Butyrate is {bin} ({butyrate.score})</strong> — this is clinically significant. Butyrate is the primary fuel for colonocytes and a key anti-inflammatory signal. Prioritise this in supplementation and dietary advice.</span>
+                <span><strong>Butyrate is {bin} ({butyrate.score})</strong> — clinically significant. Butyrate is the primary fuel for colonocytes and a key anti-inflammatory signal. Prioritise in supplementation and dietary advice.</span>
               </div>
             )
           })()}
 
-          {/* Formate alert — often linked to Prevotella dominance */}
+          {/* Formate alert */}
           {(() => {
             const formate = items.find(i => i.name === 'formate')
-            if (!formate) return null
-            const bin = getBin(formate.score, formate.low_ref, formate.high_ref)
-            if (bin !== 'high') return null
+            if (!formate || getBin(formate.score, formate.low_ref, formate.high_ref) !== 'high') return null
             return (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-6 flex items-start gap-2">
                 <span>⚑</span>
-                <span><strong>Elevated Formate ({formate.score})</strong> may reflect high Prevotella copri activity — consistent with the 50.19% Prevotella dominance seen in this patient's foundation microbiota.</span>
+                <span><strong>Elevated Formate ({formate.score})</strong> may reflect high Prevotella copri activity — consistent with Prevotella dominance in this patient's foundation microbiota.</span>
               </div>
             )
           })()}
 
-          {/* Individual SCFA bars */}
+          {/* SCFA bars */}
           <div className="space-y-3 mb-10">
             {items.map(item => (
-              <SCFARow
-                key={item.name}
-                item={item}
-                refData={SCFA_REFS[item.name]}
-              />
+              <SCFARow key={item.name} item={item} refData={SCFA_REFS[item.name]} />
             ))}
           </div>
 
-          {/* AI Analysis panel */}
-          <AIAnalysisPanel
+          {/* AI panel — same component used by all other section pages */}
+          <SectionAiPanel
             analysis={analysis}
             analysing={analysing}
             error={error}
-            onAnalyse={analyse}
+            onRegenerate={() => report && analyse(report)}
+            loadingMessage="Analysing SCFA production profile…"
           />
         </>
       )}
-    </div>
+    </SectionPageShell>
   )
 }

@@ -50,33 +50,6 @@ const NAV_GROUPS = [
   ]},
 ]
 
-// Icons for each action card
-function IconPackage() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-    </svg>
-  )
-}
-
-function IconTraining() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-    </svg>
-  )
-}
-
-function IconDiet() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0v1.5a3 3 0 01-3 3H9a3 3 0 01-3-3V10.5m12 0v-2.25A2.25 2.25 0 0015.75 6h-7.5A2.25 2.25 0 006 8.25V10.5" />
-    </svg>
-  )
-}
 
 export default function ReportPage() {
   const params   = useParams()
@@ -251,7 +224,7 @@ export default function ReportPage() {
             <p className="text-xs font-mono uppercase tracking-widest" style={{ color: '#9CA3AF' }}>
               Clinical Report
             </p>
-            <ReportPdfActions reportId={report.id} />
+            <ReportPdfActions reportId={report.id} initialPdfStored={!!report.pdf_filename} />
           </div>
 
           {!rd && (
@@ -261,77 +234,20 @@ export default function ReportPage() {
             </div>
           )}
 
-          {/* ── Section label ── */}
-          <p className="text-[10px] font-mono uppercase tracking-widest mb-4" style={{ color: '#538A22' }}>
-            Care Recommendations
-          </p>
-
-          {/* ── 3 action cards ── */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {[
-              { href: `/report/${id}/packages`,   icon: <IconPackage />,  title: 'Package Recommendation',  desc: 'Probiotic & supplement packages',        cta: 'View' },
-              { href: `/report/${id}/training`,   icon: <IconTraining />, title: 'Training Recommendation', desc: 'Exercise protocol based on gut profile',  cta: 'View' },
-              { href: `/report/${id}/dietary-rx`, icon: <IconDiet />,     title: 'Dietary Prescription',    desc: 'AI-generated species-specific meal plan', cta: 'Generate' },
-            ].map(card => (
-              <Link
-                key={card.href}
-                href={card.href}
-                className="group flex items-start gap-3 p-4 rounded-2xl transition-all min-w-0"
-                style={{ background: '#FFFFFF', border: '1px solid #E2F3D0' }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = '#C8E9A8'
-                  e.currentTarget.style.background  = '#F8FAF6'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#E2F3D0'
-                  e.currentTarget.style.background  = '#FFFFFF'
-                }}
-              >
-                {/* Icon */}
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                  style={{ background: '#E2F3D0', color: '#538A22' }}>
-                  {card.icon}
-                </div>
-                {/* Text */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold leading-snug mb-1 truncate" style={{ color: '#1A3207' }}>
-                    {card.title}
-                  </p>
-                  <p className="text-[11px] leading-relaxed" style={{ color: '#6B7280' }}>
-                    {card.desc}
-                  </p>
-                  <div className="mt-2 flex items-center gap-0.5 text-[11px] font-medium"
-                    style={{ color: '#538A22' }}>
-                    {card.cta}
-                    <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5"
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-
           {/* ── AI Recommendations Panel ── */}
           {rd && (
-            <div className="mt-8">
-              <p className="text-[10px] font-mono uppercase tracking-widest mb-4" style={{ color: '#538A22' }}>
-                AI Recommendation Engine
-              </p>
-              <RecommendationsPanel
-                reportId={report.id}
-                reportData={rd}
-                existingRecs={report.recommendations || null}
-                patient={{
-                  name:            report.patient_name,
-                  age_sex:         report.patient_age_sex,
-                  diet_type:       report.patient_diet,
-                  medical_history: report.patient_history,
-                  allergies:       report.patient_allergies,
-                }}
-              />
-            </div>
+            <RecommendationsPanel
+              reportId={report.id}
+              reportData={rd}
+              existingRecs={report.recommendations || null}
+              patient={{
+                name:            report.patient_name,
+                age_sex:         report.patient_age_sex,
+                diet_type:       report.patient_diet,
+                medical_history: report.patient_history,
+                allergies:       report.patient_allergies,
+              }}
+            />
           )}
 
         </div>

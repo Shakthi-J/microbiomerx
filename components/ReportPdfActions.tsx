@@ -7,20 +7,23 @@ import { usePdfPanel } from '@/lib/PdfPanelContext'
 
 type Props = {
   reportId: string
+  initialPdfStored?: boolean   // pass !!report.pdf_filename from parent — skips the loading flicker
 }
 
-export default function ReportPdfActions({ reportId }: Props) {
+export default function ReportPdfActions({ reportId, initialPdfStored }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const [pdfStored, setPdfStored] = useState<boolean | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // Initialise from prop so the button renders immediately on first paint
+  const [pdfStored, setPdfStored] = useState<boolean | null>(initialPdfStored ?? null)
+  const [error, setError]         = useState<string | null>(null)
   const { openPdf, closePdf, isPdfOpen } = usePdfPanel()
 
   const pdfUrl = reportPdfViewUrl(reportId)
 
+  // HEAD check still runs to confirm storage truth, but result only overrides
+  // when it contradicts the initial prop (e.g. file was deleted externally).
   useEffect(() => {
     let cancelled = false
-    setPdfStored(null)
 
     fetch(pdfUrl, { method: 'HEAD', credentials: 'include' })
       .then(res => { if (!cancelled) setPdfStored(res.ok) })
