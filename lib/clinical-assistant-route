@@ -1,0 +1,332 @@
+"use client";
+
+import { useState, useRef, useEffect, useCallback } from "react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
+
+interface ClinicalAssistantProps {
+  reportId?: string;
+  activeSection?: string;
+  patientName?: string;
+}
+
+// ─── Suggested prompts per section ────────────────────────────────────────────
+
+const SECTION_PROMPTS: Record<string, string[]> = {
+  pathogens: [
+    "What's the clinical significance of the pathogens detected?",
+    "What treatment protocol do you recommend for these pathogens?",
+    "Should I order any confirmatory tests?",
+  ],
+  scfa: [
+    "How can we improve butyrate production for this patient?",
+    "Which fibre types are most effective for SCFA deficiency?",
+    "What are the clinical consequences of low butyrate?",
+  ],
+  vitamins: [
+    "Which vitamins should I supplement based on these results?",
+    "What are the best dietary sources for the deficient vitamins?",
+    "Should I run blood tests to confirm these deficiencies?",
+  ],
+  neurotransmitters: [
+    "What psychobiotics would you recommend for this patient?",
+    "How does low serotonin precursor capacity affect mood?",
+    "Should I consider a psychiatry referral based on these findings?",
+  ],
+  diversity: [
+    "How do we improve microbial diversity for this patient?",
+    "What does low diversity mean clinically?",
+    "Which dietary changes have the most impact on diversity?",
+  ],
+  foundation: [
+    "How do we restore the missing foundation species?",
+    "What are the clinical effects of absent Akkermansia?",
+    "What probiotics target the foundation species that are low?",
+  ],
+  probiotics: [
+    "What does low Lactobacillus mean for this patient?",
+    "Which probiotic strains would you prescribe?",
+    "How long before we expect to see probiotic improvement?",
+  ],
+  default: [
+    "Summarise the key findings from this report.",
+    "What are the top 3 clinical priorities for this patient?",
+    "What's the recommended treatment plan?",
+  ],
+};
+
+function getSuggestedPrompts(section?: string): string[] {
+  if (!section) return SECTION_PROMPTS.default;
+  return SECTION_PROMPTS[section] ?? SECTION_PROMPTS.default;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function ClinicalAssistant({
+  reportId,
+  activeSection,
+  patientName,
+}: ClinicalAssistantProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const suggestedPrompts = getSuggestedPrompts(activeSection);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Focus input when opened
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen]);
+
+  const sendMessage = useCallback(
+    async (text?: string) => {
+      const content = (text ?? input).trim();
+      if (!content || loading) return;
+
+      const userMsg: Message = {
+        role: "user",
+        content,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, userMsg]);
+      setInput("");
+      setLoading(true);
+
+      try {
+        const res = await fetch("/api/clinical-assistant", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [...messages, userMsg].map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+            report_id: reportId,
+            active_section: activeSection,
+          }),
+        });
+
+        if (!res.ok) throw new Error("Request failed");
+
+        const data = await res.json();
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.reply ?? "I was unable to generate a response.",
+            timestamp: new Date(),
+          },
+        ]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "I encountered an error. Please try again.",
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [input, loading, messages, reportId, activeSection]
+  );
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // ── Floating button ──────────────────────────────────────────────────────────
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold shadow-lg shadow-violet-900/40 transition-all"
+        aria-label="Open Clinical Assistant"
+      >
+        <span className="text-base">🧑‍⚕️</span>
+        <span>Clinical Assistant</span>
+        {reportId && (
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        )}
+      </button>
+    );
+  }
+
+  // ── Chat panel ───────────────────────────────────────────────────────────────
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col w-[380px] max-h-[600px] rounded-2xl border border-gray-700/60 bg-gray-950 shadow-2xl shadow-black/60 overflow-hidden">
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900/80 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🧑‍⚕️</span>
+          <div>
+            <p className="text-sm font-semibold text-white leading-none">
+              Clinical Assistant
+            </p>
+            {patientName && (
+              <p className="text-xs text-gray-500 mt-0.5">{patientName}</p>
+            )}
+          </div>
+          {reportId && (
+            <span className="ml-1 px-1.5 py-0.5 rounded text-xs bg-emerald-900/40 text-emerald-400 border border-emerald-800/40">
+              report-aware
+            </span>
+          )}
+          {activeSection && (
+            <span className="px-1.5 py-0.5 rounded text-xs bg-violet-900/40 text-violet-400 border border-violet-800/40">
+              {activeSection}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => setIsOpen(false)}
+          className="text-gray-600 hover:text-gray-300 transition-colors p-1"
+          aria-label="Close"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+        {/* Empty state - suggested prompts */}
+        {messages.length === 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-600 text-center">
+              {reportId
+                ? "I have access to this patient's full report. Ask me anything."
+                : "Ask me anything about gut microbiome and clinical interpretation."}
+            </p>
+            <div className="space-y-2">
+              {suggestedPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => sendMessage(prompt)}
+                  className="w-full text-left px-3 py-2.5 rounded-lg border border-gray-800 bg-gray-900/40 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-700 transition-all"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message list */}
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-xl px-3 py-2.5 text-sm leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-violet-700/60 text-white"
+                  : "bg-gray-800/60 text-gray-200 border border-gray-700/40"
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{msg.content}</p>
+              <p className="text-xs mt-1 opacity-40 text-right">
+                {msg.timestamp.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {/* Loading indicator */}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl px-4 py-3 flex gap-1.5 items-center">
+              {[0, 150, 300].map((delay) => (
+                <div
+                  key={delay}
+                  className="w-1.5 h-1.5 bg-background0 rounded-full animate-bounce"
+                  style={{ animationDelay: `${delay}ms` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Suggested prompts after messages (contextual) */}
+      {messages.length > 0 && messages.length < 3 && !loading && (
+        <div className="px-4 pb-2 flex gap-2 overflow-x-auto flex-shrink-0">
+          {suggestedPrompts.slice(0, 2).map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => sendMessage(prompt)}
+              className="flex-shrink-0 px-2.5 py-1.5 rounded-full border border-gray-700/60 bg-gray-900/40 text-xs text-gray-500 hover:text-gray-300 hover:border-gray-600 transition-all"
+            >
+              {prompt.length > 40 ? prompt.slice(0, 37) + "…" : prompt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="px-3 pb-3 pt-2 border-t border-gray-800 flex-shrink-0">
+        <div className="flex gap-2 items-end">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask about this patient's results…"
+            rows={1}
+            className="flex-1 bg-gray-900 border border-gray-700/60 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:border-violet-700/60 max-h-28 overflow-y-auto"
+            style={{ minHeight: "40px" }}
+            onInput={(e) => {
+              const t = e.currentTarget;
+              t.style.height = "auto";
+              t.style.height = `${Math.min(t.scrollHeight, 112)}px`;
+            }}
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={!input.trim() || loading}
+            className="flex-shrink-0 w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all"
+            aria-label="Send"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" strokeWidth="2">
+              <path d="M2 7h10M7 2l5 5-5 5" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-xs text-gray-700 mt-1.5 text-center">
+          Shift+Enter for new line · Enter to send
+        </p>
+      </div>
+    </div>
+  );
+}

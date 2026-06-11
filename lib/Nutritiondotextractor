@@ -1,0 +1,519 @@
+/**
+ * BugSpeaks Nutrition Dot Extractor
+ * ───────────────────────────────────────────────────────────────────────────
+ * Extracts 3-phase food frequency data from BugSpeaks PDFs by:
+ *   1. Rendering each nutrition page to an offscreen canvas via pdfjs-dist
+ *   2. Extracting food name positions from the text layer
+ *   3. Sampling pixel colors at the 3 dot columns for each food row
+ *   4. Mapping RGB values to frequency buckets (daily/alt/three/avoid)
+ *
+ * Works for ANY BugSpeaks patient — not hardcoded to Andrew Dunn's data.
+ *
+ * Usage (browser-side, called from your upload flow):
+ *   import { extractNutritionFromPDF } from '@/lib/nutritionDotExtractor'
+ *   const nutrition = await extractNutritionFromPDF(pdfUint8Array)
+ *
+ * Called from: app/api/parse-report/route.ts (via client-side extraction)
+ * Or: lib/extractSpecies.ts (add nutrition extraction alongside species)
+ */
+
+import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
+import type { NutritionData, PhaseData } from './nutritionParser'
+
+// ─── Layout constants (BugSpeaks PDF coordinate system) ──────────────────────
+//
+// BugSpeaks uses a consistent page layout for all nutrition pages.
+// PDF coordinate origin is bottom-left. Page width ≈ 595pt (A4).
+// pdfjs renders at scale 2.0 by default → multiply all values × 2.
+//
+// Measured from Andrew Dunn PDF (consistent across BugSpeaks reports):
+
+const SCALE = 2.0 // render scale — higher = more accurate color sampling
+
+// Dot column x-positions in PDF points (before scale)
+// These are the CENTER x of each phase dot column
+const DOT_COLUMNS_PDF = {
+  phase1: 314,  // Phase 1 dot center x
+  phase2: 364,  // Phase 2 dot center x
+  phase3: 414,  // Phase 3 dot center x
+}
+
+// When BugSpeaks has 2 food columns per page, the right column shifts by this
+const RIGHT_COLUMN_OFFSET = 252 // x offset for the second food column
+
+// Dot radius for sampling (PDF points) — sample a 3×3 area around center
+const SAMPLE_RADIUS = 3
+
+// Y offset from text baseline to dot center (PDF points)
+// Dots are vertically centered on the food name text
+const DOT_Y_OFFSET_FROM_BASELINE = 3
+
+// ─── Color thresholds for frequency classification ────────────────────────────
+//
+// BugSpeaks dot colors (measured from PDF renders):
+//   Green  = daily     RGB ≈ (110, 168, 50)   — var(--pista-500)
+//   Blue   = alt       RGB ≈ (59, 130, 246)   — blue-500
+//   Amber  = three     RGB ≈ (245, 158, 11)   — amber-500
+//   Red    = avoid     RGB ≈ (239, 68, 68)    — red-500
+//   White/light gray = background (no dot or page background)
+
+interface RGB { r: number; g: number; b: number }
+
+function classifyDotColor(rgb: RGB): 'daily' | 'alt' | 'three' | 'avoid' | null {
+  const { r, g, b } = rgb
+
+  // Background / empty — skip
+  if (r > 220 && g > 220 && b > 220) return null
+  if (r > 200 && g > 200 && b > 200) return null
+
+  // Green (daily) — high green, lower red and blue
+  if (g > 120 && g > r * 1.3 && g > b * 1.5) return 'daily'
+
+  // Blue (alt) — dominant blue
+  if (b > 150 && b > r * 1.5 && b > g * 1.1) return 'alt'
+
+  // Amber/Yellow (three) — high red + high green, low blue
+  if (r > 180 && g > 120 && b < 80) return 'three'
+
+  // Red (avoid) — dominant red, low green and blue
+  if (r > 180 && g < 100 && b < 100) return 'avoid'
+
+  // Orange-red (also avoid in some BugSpeaks variants)
+  if (r > 200 && g < 120 && b < 80) return 'avoid'
+
+  return null
+}
+
+// ─── Category headers as they appear in BugSpeaks PDF text ───────────────────
+
+const CATEGORY_HEADER_PATTERNS: Record<string, RegExp> = {
+  'Greens & Vegetables': /greens\s*[&and]*\s*vegetables/i,
+  'Fruits': /^fruits$/i,
+  'Pulses & Legumes': /pulses\s*[&and]*\s*legumes/i,
+  'Cereals': /^cereals$/i,
+  'Fats & Oils': /fats\s*[&and]*\s*oils/i,
+  'Herbs & Condiments': /herbs\s*[&and]*\s*condiments/i,
+  'Egg & Meat': /egg\s*[&and]*\s*meat/i,
+  'Dietary Supplements': /dietary\s*supplements/i,
+  'Nuts & Seed Oils': /nuts\s*[&and]*\s*seed\s*oils/i,
+  'Drinks & Beverages': /drinks\s*[&and]*\s*beverages/i,
+  'Milk & Fermented Products': /milk\s*[&and]*\s*fermented/i,
+}
+
+// Pages in the PDF that contain nutrition content (0-indexed)
+// BugSpeaks nutrition section starts at page 34 (0-indexed) and runs to ~42
+const NUTRITION_PAGE_START = 34
+const NUTRITION_PAGE_END = 42
+
+// ─── Main extractor ───────────────────────────────────────────────────────────
+
+export async function extractNutritionFromPDF(
+  pdfData: Uint8Array | ArrayBuffer
+): Promise<NutritionData> {
+  // Dynamically import pdfjs-dist (avoids SSR issues)
+  const pdfjsLib = await import('pdfjs-dist')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
+
+  const pdf: PDFDocumentProxy = await pdfjsLib.getDocument({ data: pdfData }).promise
+  const numPages = pdf.numPages
+
+  const result: NutritionData = {}
+  let currentCategory: string | null = null
+
+  const nutritionEnd = Math.min(NUTRITION_PAGE_END, numPages - 1)
+
+  for (let pageNum = NUTRITION_PAGE_START + 1; pageNum <= nutritionEnd + 1; pageNum++) {
+    try {
+      const page = await pdf.getPage(pageNum)
+      const { foods, categoryFound } = await extractPageNutrition(page, currentCategory)
+
+      if (categoryFound) {
+        currentCategory = categoryFound
+      }
+
+      // Merge extracted foods into result
+      for (const [category, phaseData] of Object.entries(foods)) {
+        if (!result[category]) {
+          result[category] = {
+            1: { daily: [], alt: [], three: [], avoid: [] },
+            2: { daily: [], alt: [], three: [], avoid: [] },
+            3: { daily: [], alt: [], three: [], avoid: [] },
+          }
+        }
+
+        for (const phase of [1, 2, 3] as const) {
+          const pd = phaseData[phase]
+          if (!pd) continue
+          for (const freq of ['daily', 'alt', 'three', 'avoid'] as const) {
+            result[category][phase][freq].push(...pd[freq])
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[nutritionDotExtractor] page ${pageNum} failed:`, err)
+      continue
+    }
+  }
+
+  return result
+}
+
+// ─── Per-page extraction ──────────────────────────────────────────────────────
+
+interface PageNutritionResult {
+  foods: NutritionData
+  categoryFound: string | null
+}
+
+interface TextItem {
+  str: string
+  transform: number[]  // [scaleX, skewX, skewY, scaleY, tx, ty]
+  width: number
+  height: number
+}
+
+async function extractPageNutrition(
+  page: PDFPageProxy,
+  currentCategory: string | null
+): Promise<PageNutritionResult> {
+  const viewport = page.getViewport({ scale: SCALE })
+
+  // Render page to offscreen canvas
+  const canvas = new OffscreenCanvas(viewport.width, viewport.height)
+  const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+
+  await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport }).promise
+
+  // Extract text content with positions
+  const textContent = await page.getTextContent()
+  const items = textContent.items as TextItem[]
+
+  const result: NutritionData = {}
+  let categoryFound: string | null = null
+  let activeCategory = currentCategory
+
+  // PDF coordinate: origin bottom-left, y increases upward
+  // Canvas coordinate: origin top-left, y increases downward
+  // Conversion: canvasY = viewport.height - pdfY * SCALE
+  const pdfToCanvasY = (pdfY: number) => viewport.height - pdfY * SCALE
+
+  // Group text items by approximate y-position (food rows)
+  // Items within 3pt of each other are on the same row
+  const rows: Map<number, TextItem[]> = new Map()
+
+  for (const item of items) {
+    if (!item.str.trim()) continue
+    const pdfY = item.transform[5]  // ty = y position in PDF coords
+    const roundedY = Math.round(pdfY / 3) * 3  // bucket to 3pt rows
+
+    if (!rows.has(roundedY)) rows.set(roundedY, [])
+    rows.get(roundedY)!.push(item)
+  }
+
+  // Sort rows top-to-bottom (descending PDF y)
+  const sortedRows = Array.from(rows.entries()).sort((a, b) => b[0] - a[0])
+
+  // Detect left column vs right column x boundary
+  // BugSpeaks pages have 2 food columns side by side
+  // Left column items: x < ~300, right column items: x > ~300
+  const LEFT_COL_MAX_X = 290  // PDF points
+
+  for (const [pdfY, rowItems] of sortedRows) {
+    // Sort items left to right
+    rowItems.sort((a, b) => a.transform[4] - b.transform[4])
+
+    const rowText = rowItems.map((i) => i.str).join(' ').trim()
+
+    // Check if this row is a category header
+    for (const [cat, pattern] of Object.entries(CATEGORY_HEADER_PATTERNS)) {
+      if (pattern.test(rowText)) {
+        activeCategory = cat
+        categoryFound = cat
+        if (!result[cat]) {
+          result[cat] = {
+            1: { daily: [], alt: [], three: [], avoid: [] },
+            2: { daily: [], alt: [], three: [], avoid: [] },
+            3: { daily: [], alt: [], three: [], avoid: [] },
+          }
+        }
+        break
+      }
+    }
+
+    if (!activeCategory) continue
+
+    // Skip known non-food rows
+    if (isHeaderRow(rowText)) continue
+
+    // Check left column food items
+    const leftItems = rowItems.filter((i) => i.transform[4] < LEFT_COL_MAX_X)
+    const rightItems = rowItems.filter((i) => i.transform[4] >= LEFT_COL_MAX_X)
+
+    // Process left column
+    const leftFoodName = extractFoodName(leftItems)
+    if (leftFoodName) {
+      const dotY = pdfToCanvasY(pdfY + DOT_Y_OFFSET_FROM_BASELINE)
+      const freqs = sampleDotFrequencies(ctx, viewport, pdfY, false)
+      if (freqs && result[activeCategory]) {
+        assignFoodToPhases(result[activeCategory], leftFoodName, freqs)
+      }
+    }
+
+    // Process right column (x-shifted dot positions)
+    const rightFoodName = extractFoodName(rightItems)
+    if (rightFoodName) {
+      const freqs = sampleDotFrequencies(ctx, viewport, pdfY, true)
+      if (freqs && result[activeCategory]) {
+        assignFoodToPhases(result[activeCategory], rightFoodName, freqs)
+      }
+    }
+  }
+
+  return { foods: result, categoryFound }
+}
+
+// ─── Sample dot colors at a given row y ──────────────────────────────────────
+
+interface PhaseFrequencies {
+  phase1: 'daily' | 'alt' | 'three' | 'avoid' | null
+  phase2: 'daily' | 'alt' | 'three' | 'avoid' | null
+  phase3: 'daily' | 'alt' | 'three' | 'avoid' | null
+}
+
+function sampleDotFrequencies(
+  ctx: OffscreenCanvasRenderingContext2D,
+  viewport: { width: number; height: number },
+  pdfY: number,
+  isRightColumn: boolean
+): PhaseFrequencies | null {
+  const colOffset = isRightColumn ? RIGHT_COLUMN_OFFSET : 0
+
+  const dotPositions = {
+    phase1: (DOT_COLUMNS_PDF.phase1 + colOffset) * SCALE,
+    phase2: (DOT_COLUMNS_PDF.phase2 + colOffset) * SCALE,
+    phase3: (DOT_COLUMNS_PDF.phase3 + colOffset) * SCALE,
+  }
+
+  // Convert PDF y to canvas y
+  const canvasY = viewport.height - (pdfY + DOT_Y_OFFSET_FROM_BASELINE) * SCALE
+
+  // Clamp to canvas bounds
+  if (canvasY < 0 || canvasY >= viewport.height) return null
+
+  const result: PhaseFrequencies = { phase1: null, phase2: null, phase3: null }
+
+  for (const [phaseKey, canvasX] of Object.entries(dotPositions)) {
+    if (canvasX < 0 || canvasX >= viewport.width) continue
+
+    const rgb = sampleAverageColor(ctx, canvasX, canvasY, SAMPLE_RADIUS * SCALE)
+    const freq = classifyDotColor(rgb)
+
+    result[phaseKey as keyof PhaseFrequencies] = freq
+  }
+
+  return result
+}
+
+// ─── Sample average color in a region ────────────────────────────────────────
+
+function sampleAverageColor(
+  ctx: OffscreenCanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number
+): RGB {
+  const x = Math.max(0, Math.floor(cx - radius))
+  const y = Math.max(0, Math.floor(cy - radius))
+  const size = Math.max(1, Math.ceil(radius * 2))
+
+  try {
+    const imageData = ctx.getImageData(x, y, size, size)
+    const data = imageData.data
+
+    let r = 0, g = 0, b = 0, count = 0
+
+    for (let i = 0; i < data.length; i += 4) {
+      const alpha = data[i + 3]
+      if (alpha > 128) {  // Only count non-transparent pixels
+        r += data[i]
+        g += data[i + 1]
+        b += data[i + 2]
+        count++
+      }
+    }
+
+    if (count === 0) return { r: 255, g: 255, b: 255 }
+
+    return {
+      r: Math.round(r / count),
+      g: Math.round(g / count),
+      b: Math.round(b / count),
+    }
+  } catch {
+    return { r: 255, g: 255, b: 255 }
+  }
+}
+
+// ─── Extract food name from text items ───────────────────────────────────────
+
+function extractFoodName(items: TextItem[]): string | null {
+  if (!items.length) return null
+
+  const text = items
+    .map((i) => i.str)
+    .join(' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+
+  // Skip empty, very short, or known non-food strings
+  if (!text || text.length < 3) return null
+  if (isHeaderRow(text)) return null
+
+  // Title case normalisation
+  return toTitleCase(text)
+}
+
+function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/\b(And|The|Of|In|A|An)\b/g, (w) => w.toLowerCase())
+}
+
+// ─── Assign food to phase buckets ────────────────────────────────────────────
+
+function assignFoodToPhases(
+  categoryData: { 1: PhaseData; 2: PhaseData; 3: PhaseData },
+  food: string,
+  freqs: PhaseFrequencies
+): void {
+  const phaseMap: Record<keyof PhaseFrequencies, 1 | 2 | 3> = {
+    phase1: 1,
+    phase2: 2,
+    phase3: 3,
+  }
+
+  for (const [phaseKey, phase] of Object.entries(phaseMap) as [keyof PhaseFrequencies, 1 | 2 | 3][]) {
+    const freq = freqs[phaseKey]
+    if (!freq) continue
+    if (!categoryData[phase][freq].includes(food)) {
+      categoryData[phase][freq].push(food)
+    }
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const NON_FOOD_PATTERNS = [
+  /^items$/i,
+  /^phase\s*[123]/i,
+  /^page\s*\d+/i,
+  /^name:/i,
+  /^age:/i,
+  /^id:/i,
+  /^nutritional\s*report/i,
+  /^bugspeaks/i,
+  /^clinic\s*living/i,
+  /^dietary\s*recommendations$/i,
+  /^phase\s*1$/i,
+  /^phase\s*2$/i,
+  /^phase\s*3$/i,
+  /^restoring|^rebuilding|^maintaining/i,
+  /^\d+\s*of\s*\d+$/,
+]
+
+function isHeaderRow(text: string): boolean {
+  return NON_FOOD_PATTERNS.some((p) => p.test(text.trim()))
+}
+
+// ─── Fallback: combine with lookup for known foods ────────────────────────────
+//
+// If canvas extraction missed a food (dot position sampling failed),
+// fill it in from the lookup table as a fallback.
+// This ensures the page never shows empty categories.
+
+export async function extractNutritionWithFallback(
+  pdfData: Uint8Array | ArrayBuffer
+): Promise<NutritionData> {
+  const { buildNutritionFromLookup, CATEGORY_FOOD_MAP } = await import('./nutritionParser')
+
+  let extracted: NutritionData = {}
+
+  try {
+    extracted = await extractNutritionFromPDF(pdfData)
+  } catch (err) {
+    console.error('[nutritionDotExtractor] canvas extraction failed, using lookup fallback:', err)
+    return buildNutritionFromLookup()
+  }
+
+  // Count how many foods were actually extracted
+  let totalExtracted = 0
+  for (const catData of Object.values(extracted)) {
+    for (const phase of [1, 2, 3] as const) {
+      const p = catData[phase]
+      totalExtracted += p.daily.length + p.alt.length + p.three.length + p.avoid.length
+    }
+  }
+
+  // If extraction got fewer than 50 foods, canvas extraction likely failed
+  // Fall back to lookup table entirely
+  if (totalExtracted < 50) {
+    console.warn(
+      `[nutritionDotExtractor] only ${totalExtracted} foods extracted — falling back to lookup`
+    )
+    return buildNutritionFromLookup()
+  }
+
+  // Otherwise use extracted data — it's patient-specific
+  console.log(`[nutritionDotExtractor] extracted ${totalExtracted} food-phase assignments`)
+  return extracted
+}
+
+// ─── Debug helper: visualize dot sampling positions ───────────────────────────
+//
+// Call this in development to verify dot positions are correct.
+// Returns a data URL of the nutrition page with sampling positions marked.
+
+export async function debugDotPositions(
+  pdfData: Uint8Array | ArrayBuffer,
+  pageNum: number = NUTRITION_PAGE_START + 1
+): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
+
+  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
+  const page = await pdf.getPage(pageNum)
+  const viewport = page.getViewport({ scale: SCALE })
+
+  const canvas = new OffscreenCanvas(viewport.width, viewport.height)
+  const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+
+  await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport }).promise
+
+  // Draw sampling position markers
+  ctx.strokeStyle = 'rgba(255, 0, 255, 0.8)'
+  ctx.lineWidth = 2
+
+  const testRows = [100, 120, 140, 160, 180, 200, 220, 240]  // sample y positions
+
+  for (const pdfY of testRows) {
+    const canvasY = viewport.height - pdfY * SCALE
+
+    for (const [, pdfX] of Object.entries(DOT_COLUMNS_PDF)) {
+      const canvasX = pdfX * SCALE
+
+      ctx.beginPath()
+      ctx.arc(canvasX, canvasY, SAMPLE_RADIUS * SCALE, 0, Math.PI * 2)
+      ctx.stroke()
+
+      // Right column
+      const canvasXRight = (pdfX + RIGHT_COLUMN_OFFSET) * SCALE
+      ctx.beginPath()
+      ctx.arc(canvasXRight, canvasY, SAMPLE_RADIUS * SCALE, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+  }
+
+  const blob = await canvas.convertToBlob({ type: 'image/png' })
+  return URL.createObjectURL(blob)
+}

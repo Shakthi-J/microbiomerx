@@ -1,0 +1,275 @@
+@import "tailwindcss";
+
+/* =======================================================
+   MICROBIOME CLINICAL DESIGN SYSTEM
+   ======================================================= */
+
+:root {
+  /* Backgrounds */
+  --background: #f8f4ea;
+  --card: #fffdf8;
+  --card-secondary: #f3f8ef;
+
+  /* Brand Colors */
+  --primary: #2e7d32;
+  --primary-hover: #256a29;
+  --primary-light: #dcefd7;
+
+  --secondary: #a8d5a2;
+  --secondary-light: #eef8eb;
+
+  /* Accent */
+  --beige: #e8dfc9;
+  --beige-light: #f4eee1;
+
+  /* Text */
+  --foreground: #1f2937;
+  --foreground-secondary: #6b7280;
+  --foreground-muted: #9ca3af;
+
+  /* Status */
+  --success: #2e7d32;
+  --warning: #d97706;
+  --danger: #dc2626;
+
+  /* Borders */
+  --border: #e8dfc9;
+  --border-light: #f0ebe0;
+
+  /* Shadows */
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.03);
+
+  --shadow-md:
+    0 4px 12px rgba(0, 0, 0, 0.05);
+
+  --shadow-lg:
+    0 12px 24px rgba(0, 0, 0, 0.08);
+
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+}
+
+/* =======================================================
+   DARK MODE
+   ======================================================= */
+
+.dark {
+  --background: #101712;
+  --card: #162019;
+  --card-secondary: #1d2920;
+
+  --primary: #66bb6a;
+  --primary-hover: #81c784;
+  --primary-light: #204529;
+
+  --secondary: #81c784;
+  --secondary-light: #28402e;
+
+  --beige: #475046;
+  --beige-light: #556056;
+
+  --foreground: #f3f4f6;
+  --foreground-secondary: #d1d5db;
+  --foreground-muted: #9ca3af;
+
+  --border: #2f3b31;
+  --border-light: #3b483d;
+
+  --success: #4caf50;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+/* =======================================================
+   TAILWIND THEME MAPPING
+   ======================================================= */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-card-secondary: var(--card-secondary);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-light: var(--secondary-light);
+
+  --color-beige: var(--beige);
+  --color-beige-light: var(--beige-light);
+
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-muted: var(--foreground-muted);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+}
+
+/* =======================================================
+   GLOBAL STYLES
+   ======================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =======================================================
+   SCROLLBAR
+   ======================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cfd8c5;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8d5a2;
+}
+
+/* =======================================================
+   SELECTION
+   ======================================================= */
+
+::selection {
+  background: rgba(46, 125, 50, 0.18);
+  color: var(--foreground);
+}
+
+/* =======================================================
+   COMPONENT UTILITIES
+   ======================================================= */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-hover {
+  transition: all 0.25s ease;
+}
+
+.card-hover:hover {
+  border-color: var(--secondary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.clinical-gradient {
+  background:
+    linear-gradient(
+      135deg,
+      #dcefd7 0%,
+      #f8f4ea 100%
+    );
+}
+
+.primary-gradient {
+  background:
+    linear-gradient(
+      135deg,
+      #2e7d32 0%,
+      #4caf50 100%
+    );
+}
+
+.sidebar-surface {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+}
+
+.section-surface {
+  background: var(--card-secondary);
+}
+
+.success-pill {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.warning-pill {
+  background: #fff7ed;
+  color: #d97706;
+}
+
+.danger-pill {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* =======================================================
+   TRANSITIONS
+   ======================================================= */
+
+button,
+a {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* =======================================================
+   FOCUS STATES
+   ======================================================= */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+/* =======================================================
+   CHART COLORS
+   ======================================================= */
+
+:root {
+  --chart-1: #2e7d32;
+  --chart-2: #4caf50;
+  --chart-3: #81c784;
+  --chart-4: #a5d6a7;
+  --chart-5: #c8e6c9;
+}

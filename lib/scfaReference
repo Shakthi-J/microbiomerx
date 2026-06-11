@@ -1,0 +1,166 @@
+export type ProductionLevel = "optimal" | "adequate" | "low" | "deficient";
+
+export interface SCFAMeta {
+  id: string;
+  name: string;
+  shortName: string;
+  formula: string;
+  primaryBenefit: string;
+  functions: string[];
+  deficiencyEffects: string[];
+  keyProducers: string[]; // genus names
+  optimalRange: string;
+  unit: string;
+  color: string; // tailwind color class suffix
+}
+
+export const SCFA_REFERENCE: SCFAMeta[] = [
+  {
+    id: "butyrate",
+    name: "Butyrate",
+    shortName: "C4",
+    formula: "C₄H₇O₂⁻",
+    primaryBenefit: "Colonocyte fuel & gut barrier integrity",
+    functions: [
+      "Primary energy source for colonocytes",
+      "Strengthens tight junction proteins (occludin, claudin)",
+      "Suppresses NF-κB inflammatory signalling",
+      "Inhibits histone deacetylase (epigenetic regulation)",
+      "Induces regulatory T-cell differentiation",
+      "Anti-colorectal cancer via apoptosis induction",
+    ],
+    deficiencyEffects: [
+      "Leaky gut / increased intestinal permeability",
+      "Chronic low-grade gut inflammation",
+      "Increased colorectal cancer risk",
+      "Reduced mucus layer thickness",
+      "Impaired immune tolerance",
+    ],
+    keyProducers: [
+      "Faecalibacterium",
+      "Roseburia",
+      "Eubacterium",
+      "Butyricicoccus",
+      "Coprococcus",
+      "Anaerobutyricum",
+    ],
+    optimalRange: "0.4–0.8 mmol/g",
+    unit: "mmol/g",
+    color: "emerald",
+  },
+  {
+    id: "propionate",
+    name: "Propionate",
+    shortName: "C3",
+    formula: "C₃H₅O₂⁻",
+    primaryBenefit: "Metabolic regulation & glucose homeostasis",
+    functions: [
+      "Hepatic gluconeogenesis substrate (anti-hyperglycaemic)",
+      "Inhibits cholesterol synthesis in liver",
+      "Stimulates satiety hormones (PYY, GLP-1)",
+      "Anti-inflammatory via HDAC inhibition",
+      "Supports gut motility via free fatty acid receptor signalling",
+    ],
+    deficiencyEffects: [
+      "Poor insulin sensitivity",
+      "Elevated LDL cholesterol",
+      "Impaired satiety signalling",
+      "Gut motility dysfunction",
+    ],
+    keyProducers: [
+      "Akkermansia",
+      "Bacteroides",
+      "Phascolarctobacterium",
+      "Dialister",
+      "Veillonella",
+    ],
+    optimalRange: "0.2–0.5 mmol/g",
+    unit: "mmol/g",
+    color: "blue",
+  },
+  {
+    id: "acetate",
+    name: "Acetate",
+    shortName: "C2",
+    formula: "C₂H₃O₂⁻",
+    primaryBenefit: "Immune modulation & systemic energy",
+    functions: [
+      "Most abundant SCFA - systemic energy substrate",
+      "Precursor for butyrate synthesis by cross-feeding",
+      "Reduces gut pH (protective against pathogens)",
+      "Activates GPR43/GPR41 immune receptors",
+      "Supports brain energy metabolism",
+    ],
+    deficiencyEffects: [
+      "Reduced cross-feeding support for butyrate producers",
+      "Less favourable gut pH",
+      "Impaired immune receptor activation",
+    ],
+    keyProducers: [
+      "Bifidobacterium",
+      "Lactobacillus",
+      "Prevotella",
+      "Clostridium",
+      "Streptococcus",
+    ],
+    optimalRange: "0.8–1.5 mmol/g",
+    unit: "mmol/g",
+    color: "violet",
+  },
+  {
+    id: "valerate",
+    name: "Valerate",
+    shortName: "C5",
+    formula: "C₅H₉O₂⁻",
+    primaryBenefit: "Anti-inflammatory colonocyte support",
+    functions: [
+      "Secondary colonocyte energy source",
+      "HDAC inhibitor - epigenetic anti-inflammatory",
+      "Regulates intestinal gluconeogenesis",
+    ],
+    deficiencyEffects: [
+      "Reduced epigenetic anti-inflammatory capacity",
+      "Minor contribution to colonocyte energy gap",
+    ],
+    keyProducers: ["Roseburia", "Clostridium", "Fusobacterium"],
+    optimalRange: "0.02–0.1 mmol/g",
+    unit: "mmol/g",
+    color: "pink",
+  },
+];
+
+export const SCFA_ID = SCFA_REFERENCE.map((s) => s.id);
+
+export const LEVEL_CONFIG: Record<
+  ProductionLevel,
+  { label: string; color: string; bg: string; border: string; bar: number }
+> = {
+  optimal: {
+    label: "Optimal",
+    color: "text-emerald-400",
+    bg: "bg-emerald-950/30",
+    border: "border-emerald-800/40",
+    bar: 95,
+  },
+  adequate: {
+    label: "Adequate",
+    color: "text-blue-400",
+    bg: "bg-blue-950/30",
+    border: "border-blue-800/40",
+    bar: 65,
+  },
+  low: {
+    label: "Low",
+    color: "text-amber-400",
+    bg: "bg-amber-950/20",
+    border: "border-amber-800/40",
+    bar: 35,
+  },
+  deficient: {
+    label: "Deficient",
+    color: "text-red-400",
+    bg: "bg-red-950/20",
+    border: "border-red-800/40",
+    bar: 10,
+  },
+};
