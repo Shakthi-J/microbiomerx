@@ -21,7 +21,6 @@ const supabase = createClient(
 )
 
 // --- Fetch all active AIC products from Supabase ----------------------------
-// This is the single source of truth — product details live in DB, not in code
 
 async function fetchAICProducts(): Promise<AICProduct[]> {
   const { data, error } = await supabase
@@ -55,7 +54,7 @@ async function writeRationale(rec: AICRecommendation): Promise<string> {
             '- Never invent supplement names or doses - they are already determined',
             '- Never use marketing language',
             '- Maximum 3 sentences',
-            "- Be specific to the patient's findings",
+            '- Be specific to the patient findings provided',
           ].join('\n'),
         },
         {
@@ -115,12 +114,11 @@ export async function POST(req: NextRequest) {
     ]
 
     // Step 4: Write Groq rationale sequentially
-    // (sequential not parallel — avoids Groq rate limits on free tier)
     for (const rec of allRecs) {
       rec.ai_rationale = await writeRationale(rec)
     }
 
-    // Step 5: Helper to merge rationales back into each phase array
+    // Step 5: Merge rationales back into phase arrays
     const withRationale = (phase: AICRecommendation[]): AICRecommendation[] =>
       phase.map((r: AICRecommendation) => ({
         ...r,
@@ -129,7 +127,7 @@ export async function POST(req: NextRequest) {
         )?.ai_rationale,
       }))
 
-    // Step 6: Rebuild full output with rationales
+    // Step 6: Rebuild full output
     const fullOutput: AICRulesOutput = {
       ...rulesOutput,
       phase1:                   withRationale(rulesOutput.phase1),
@@ -139,7 +137,7 @@ export async function POST(req: NextRequest) {
       phase3:                   withRationale(rulesOutput.phase3),
     }
 
-    // Step 7: Cache results in Supabase
+    // Step 7: Cache in Supabase
     await supabase
       .from('reports')
       .update({
