@@ -47,8 +47,12 @@ const NAV_GROUPS = [
   ]},
   { label: 'Resistance', items: [
     { section: 'antibiotic', label: 'Antibiotic' },
-  ]},
+  ]}, 
+  { label: 'Clinical tools', items: [
+  { section: 'aic-supplements',  label: 'AIC Supplement Plan' },
+]},
 ]
+
 
 
 export default function ReportPage() {
