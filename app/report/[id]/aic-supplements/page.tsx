@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
+import React, { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import {
   runAICSupplementRules,
