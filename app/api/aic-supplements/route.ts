@@ -1,16 +1,17 @@
 // app/api/aic-supplements/route.ts
-// AIC Supplement Recommendation Engine
-// Rules engine (deterministic) → Groq (writes clinical rationale only)
+// AIC Supplement Recommendation Engine — v2.0.0
+// Products fetched from Supabase aic_products table (not hardcoded)
+// Rules engine (deterministic) -> Groq (writes clinical rationale only)
 
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 import { createClient } from '@supabase/supabase-js'
 import {
   runAICSupplementRules,
+  type AICProduct,
   type AICRecommendation,
   type AICRulesOutput,
 } from '@/lib/aicSupplementRules'
-
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 
@@ -19,7 +20,23 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// ─── Write rationale for a single recommendation ────────────────────────────
+// --- Fetch all active AIC products from Supabase ----------------------------
+// This is the single source of truth — product details live in DB, not in code
+
+async function fetchAICProducts(): Promise<AICProduct[]> {
+  const { data, error } = await supabase
+    .from('aic_products')
+    .select('*')
+    .eq('active', true)
+    .order('phase', { ascending: true })
+
+  if (error) throw new Error(`Failed to fetch AIC products: ${error.message}`)
+  if (!data || data.length === 0) throw new Error('No active AIC products found. Run the seed SQL in Supabase first.')
+
+  return data as AICProduct[]
+}
+
+// --- Write Groq rationale for a single recommendation -----------------------
 
 async function writeRationale(rec: AICRecommendation): Promise<string> {
   try {
@@ -30,14 +47,16 @@ async function writeRationale(rec: AICRecommendation): Promise<string> {
       messages: [
         {
           role: 'system',
-          content: `You are a clinical gut microbiome specialist writing concise, evidence-based supplement rationales for a functional medicine doctor.
-Rules:
-- Write in clinical, professional tone
-- Never use the word "prescribe" — use "consider", "indicated", "suggested"
-- Never invent supplement names or doses — they are already determined
-- Never use marketing language
-- Maximum 3 sentences
-- Be specific to the patient's findings`,
+          content: [
+            'You are a clinical gut microbiome specialist writing concise, evidence-based supplement rationales for a functional medicine doctor.',
+            'Rules:',
+            '- Write in clinical, professional tone',
+            '- Never use the word "prescribe" - use "consider", "indicated", "suggested"',
+            '- Never invent supplement names or doses - they are already determined',
+            '- Never use marketing language',
+            '- Maximum 3 sentences',
+            "- Be specific to the patient's findings",
+          ].join('\n'),
         },
         {
           role: 'user',
@@ -51,7 +70,7 @@ Rules:
   }
 }
 
-// ─── POST handler ────────────────────────────────────────────────────────────
+// --- POST handler ------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,7 +83,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check if we already have cached results (skip if regenerate=true)
+    // Return cached results if available (unless regenerate=true)
     if (!regenerate) {
       const { data: existing } = await supabase
         .from('reports')
@@ -80,10 +99,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Step 1: Run deterministic rules engine ─────────────────────────────────
-    const rulesOutput: AICRulesOutput = runAICSupplementRules(report_data)
+    // Step 1: Fetch AIC products from Supabase
+    const products = await fetchAICProducts()
 
-    // ── Step 2: Collect all recommendations that need AI rationale ────────────
+    // Step 2: Run deterministic rules engine
+    const rulesOutput: AICRulesOutput = runAICSupplementRules(report_data, products)
+
+    // Step 3: Collect all recommendations
     const allRecs: AICRecommendation[] = [
       ...rulesOutput.phase1,
       ...rulesOutput.phase2_infection_control,
@@ -92,44 +114,38 @@ export async function POST(req: NextRequest) {
       ...rulesOutput.phase3,
     ]
 
-    // ── Step 3: Write Groq rationale for each recommendation ──────────────────
-    // Run sequentially to avoid Groq rate limits (free tier = 100k tokens/day)
+    // Step 4: Write Groq rationale sequentially
+    // (sequential not parallel — avoids Groq rate limits on free tier)
     for (const rec of allRecs) {
       rec.ai_rationale = await writeRationale(rec)
     }
 
-    // ── Step 4: Rebuild output with filled rationales ──────────────────────────
+    // Step 5: Helper to merge rationales back into each phase array
+    const withRationale = (phase: AICRecommendation[]): AICRecommendation[] =>
+      phase.map((r: AICRecommendation) => ({
+        ...r,
+        ai_rationale: allRecs.find(
+          (a: AICRecommendation) => a.product_key === r.product_key
+        )?.ai_rationale,
+      }))
+
+    // Step 6: Rebuild full output with rationales
     const fullOutput: AICRulesOutput = {
       ...rulesOutput,
-      phase1: rulesOutput.phase1.map(r => ({
-        ...r,
-        ai_rationale: allRecs.find(a => a.product_key === r.product_key)?.ai_rationale,
-      })),
-      phase2_infection_control: rulesOutput.phase2_infection_control.map(r => ({
-        ...r,
-        ai_rationale: allRecs.find(a => a.product_key === r.product_key)?.ai_rationale,
-      })),
-      phase2_probiotics: rulesOutput.phase2_probiotics.map(r => ({
-        ...r,
-        ai_rationale: allRecs.find(a => a.product_key === r.product_key)?.ai_rationale,
-      })),
-      phase2_nutrition: rulesOutput.phase2_nutrition.map(r => ({
-        ...r,
-        ai_rationale: allRecs.find(a => a.product_key === r.product_key)?.ai_rationale,
-      })),
-      phase3: rulesOutput.phase3.map(r => ({
-        ...r,
-        ai_rationale: allRecs.find(a => a.product_key === r.product_key)?.ai_rationale,
-      })),
+      phase1:                   withRationale(rulesOutput.phase1),
+      phase2_infection_control: withRationale(rulesOutput.phase2_infection_control),
+      phase2_probiotics:        withRationale(rulesOutput.phase2_probiotics),
+      phase2_nutrition:         withRationale(rulesOutput.phase2_nutrition),
+      phase3:                   withRationale(rulesOutput.phase3),
     }
 
-    // ── Step 5: Save to Supabase ───────────────────────────────────────────────
+    // Step 7: Cache results in Supabase
     await supabase
       .from('reports')
       .update({
         aic_supplement_recommendations: fullOutput,
-        aic_rules_version: fullOutput.version,
-        updated_at: new Date().toISOString(),
+        aic_rules_version:              fullOutput.version,
+        updated_at:                     new Date().toISOString(),
       })
       .eq('id', report_id)
 
@@ -138,7 +154,10 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[aic-supplements]', error)
     return NextResponse.json(
-      { error: 'Failed to generate AIC supplement recommendations' },
+      {
+        error:  error instanceof Error ? error.message : 'Failed to generate AIC supplement recommendations',
+        detail: String(error),
+      },
       { status: 500 }
     )
   }
