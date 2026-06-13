@@ -454,8 +454,8 @@ export async function extractDietaryViaGroq(
   const sectionText = sliceDietarySection(text)
 
   const completion = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    max_tokens: 8000,
+    model: 'llama-3.1-8b-instant',
+    max_tokens: 4000,
     temperature: 0.1,
     messages: [
       { role: 'system', content: GROQ_SYSTEM },

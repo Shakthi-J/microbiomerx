@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 type Props = {
   reportId: string
@@ -113,6 +114,7 @@ function WhyButton({ finding, value, low, high, pmids, confidenceSource }: {
 }
 
 export default function RecommendationsPanel({ reportId, reportData, patient, existingRecs }: Props) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [recs, setRecs] = useState<Recs | null>(existingRecs || null)
   const [error, setError] = useState<string | null>(null)
@@ -128,7 +130,8 @@ export default function RecommendationsPanel({ reportId, reportData, patient, ex
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')
-      setRecs(data.recommendations); setTab('findings')
+      // Navigate to doctor review screen with the saved rules_output
+      router.push(`/report/${reportId}/review`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed')
     } finally {
@@ -150,9 +153,17 @@ export default function RecommendationsPanel({ reportId, reportData, patient, ex
         ))}
       </div>
       {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 mb-4 text-left">{error}</div>}
-      <button onClick={generate} className="px-8 py-3 bg-primary hover:bg-primary-hover shadow-sm text-white font-medium rounded-xl text-sm transition-all">
-        Generate recommendations →
-      </button>
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <button onClick={generate} className="px-8 py-3 bg-primary hover:bg-primary-hover shadow-sm text-white font-medium rounded-xl text-sm transition-all">
+          Generate recommendations →
+        </button>
+        <button
+          onClick={() => router.push(`/report/${reportId}/review`)}
+          className="px-8 py-3 border border-[#538A22] text-[#538A22] hover:bg-[#F2F9EC] font-medium rounded-xl text-sm transition-all"
+        >
+          Doctor Review →
+        </button>
+      </div>
       <p className="text-xs text-gray-400 font-mono mt-3">For physician use only · Not a prescription</p>
     </div>
   )
