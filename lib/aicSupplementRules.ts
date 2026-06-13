@@ -105,7 +105,7 @@ export function runAICSupplementRules(
 
   const healthRisk     = (reportData.health_indicators as Record<string, string>) ?? {}
   const isModHigh      = (ind: string) =>
-    ['moderate', 'high'].includes((healthRisk[ind] ?? '').toLowerCase())
+    ['moderate', 'high'].includes(String(healthRisk[ind] ?? '').toLowerCase())
 
   const diseaseRisk    = (reportData.disease_risk as Record<string, number>) ?? {}
   const diseaseOver    = (cond: string, pct = 15) =>
@@ -149,8 +149,8 @@ export function runAICSupplementRules(
 
   if (leakyGut || gutInflam) {
     const tf: AICFinding[] = []
-    if (leakyGut)  tf.push({ biomarker: 'Leaky Gut Potential',        observed_value: healthRisk['leaky_gut'] ?? 'Moderate',    reference_range: 'Target: Low Risk', severity: 'high',     clinical_note: 'Compromised gut barrier — seal before starting infection control' })
-    if (gutInflam) tf.push({ biomarker: 'Potential Gut Inflammation',  observed_value: healthRisk['gut_inflammation'] ?? 'Moderate', reference_range: 'Target: Low Risk', severity: 'high', clinical_note: 'Active gut inflammation — gut lining repair is priority' })
+    if (leakyGut)  tf.push({ biomarker: 'Leaky Gut Potential',        observed_value: String(healthRisk['leaky_gut'] ?? 'Moderate'),    reference_range: 'Target: Low Risk', severity: 'high',     clinical_note: 'Compromised gut barrier — seal before starting infection control' })
+    if (gutInflam) tf.push({ biomarker: 'Potential Gut Inflammation',  observed_value: String(healthRisk['gut_inflammation'] ?? 'Moderate'), reference_range: 'Target: Low Risk', severity: 'high', clinical_note: 'Active gut inflammation — gut lining repair is priority' })
     push(phase1, 'COLOSTRUM_GUT_REVIVE', 'critical', tf,
       `Patient has ${tf.map(f => f.biomarker).join(' and ')}. Explain why Colostrum Gut Revive (IgG immunoglobulins, L-Glutamine, Zinc Carnosine, Slippery Elm) is the first-line intervention to repair the gut lining before infection control. 2-3 clinical sentences.`)
   }
@@ -167,7 +167,7 @@ export function runAICSupplementRules(
 
   if (tmao) {
     push(phase1, 'TOXIN_CLEANSE', 'moderate',
-      [{ biomarker: 'TMAO Production Potential', observed_value: healthRisk['tmao_production'] ?? 'Moderate', reference_range: 'Target: Low Risk', severity: 'moderate', clinical_note: 'Elevated TMAO indicates toxic metabolite burden' }],
+      [{ biomarker: 'TMAO Production Potential', observed_value: String(healthRisk['tmao_production'] ?? 'Moderate'), reference_range: 'Target: Low Risk', severity: 'moderate', clinical_note: 'Elevated TMAO indicates toxic metabolite burden' }],
       `Patient has ${healthRisk['tmao_production']} TMAO production risk. Explain in 2 sentences why a binder (activated charcoal + diatomaceous earth) is used to capture toxic metabolites. Note it must be taken 2+ hours away from all other supplements.`)
     needsDieOff = true
   }
