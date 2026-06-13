@@ -157,12 +157,6 @@ export default function RecommendationsPanel({ reportId, reportData, patient, ex
         <button onClick={generate} className="px-8 py-3 bg-primary hover:bg-primary-hover shadow-sm text-white font-medium rounded-xl text-sm transition-all">
           Generate recommendations →
         </button>
-        <button
-          onClick={() => router.push(`/report/${reportId}/review`)}
-          className="px-8 py-3 border border-[#538A22] text-[#538A22] hover:bg-[#F2F9EC] font-medium rounded-xl text-sm transition-all"
-        >
-          Doctor Review →
-        </button>
       </div>
       <p className="text-xs text-gray-400 font-mono mt-3">For physician use only · Not a prescription</p>
     </div>
