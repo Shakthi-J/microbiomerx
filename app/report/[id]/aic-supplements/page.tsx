@@ -335,7 +335,7 @@ export default function AICSupplementsPage() {
 
       <div className="flex items-start justify-between gap-4 mb-1">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">💊</span>
+          <span className="text-2xl"></span>
           <h1 className="text-3xl font-light text-gray-900">AIC Supplement Plan</h1>
         </div>
         <button
