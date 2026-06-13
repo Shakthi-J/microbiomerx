@@ -142,7 +142,7 @@ export default function RecommendationsPanel({ reportId, reportData, patient, ex
   // ── EMPTY STATE ────────────────────────────────────────────────────────────
   if (!recs && !loading) return (
     <div className="bg-white border border-[#E2F3D0] rounded-2xl p-10 text-center">
-      <div className="text-5xl mb-4">🔬</div>
+      <div className="text-5xl mb-4"></div>
       <h3 className="text-xl font-light text-gray-900 mb-2">AI Recommendation Engine</h3>
       <p className="text-sm text-gray-400 leading-relaxed mb-6 max-w-md mx-auto">
         Runs a deterministic rules engine on the report scores, matches supplements from the clinical database, and generates evidence-based clinical notes. For doctor review only.

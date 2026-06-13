@@ -338,19 +338,7 @@ export default function AICSupplementsPage() {
           <span className="text-2xl"></span>
           <h1 className="text-3xl font-light text-gray-900">AIC Supplement Plan</h1>
         </div>
-        <button
-          onClick={() => generate(output !== null)}
-          disabled={generating}
-          className={`text-xs font-mono px-4 py-2 rounded-lg border transition flex-shrink-0 ${
-            generating
-              ? 'bg-gray-100 text-gray-400 border-gray-200'
-              : output
-              ? 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-              : 'bg-[#538A22] text-white border-[#538A22] hover:bg-[#3D6B16]'
-          }`}
-        >
-          {generating ? 'Generating...' : output ? 'Regenerate' : 'Generate Plan'}
-        </button>
+        
       </div>
 
       <p className="text-sm text-gray-400 mb-8">
@@ -373,9 +361,7 @@ export default function AICSupplementsPage() {
 
       {!output && !generating && (
         <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#F2F9EC] border border-[#C8E9A8] flex items-center justify-center mx-auto mb-5 text-3xl">
-            💊
-          </div>
+
           <h3 className="text-base font-medium text-gray-900 mb-2">No supplement plan generated yet</h3>
           <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto leading-relaxed">
             Click Generate Plan to map this patient's report findings to AIC supplements.
