@@ -423,18 +423,22 @@ export async function runRulesEngineV2(
       .select('*')
       .in('condition_name', suppConditions)
       .order('supplement_priority', { ascending: true })
-    supplements = (data ?? []).map(r => ({
-      condition_name: r.condition_name,
-      priority:       Number(r.supplement_priority) || 99,
-      product_name:   r.product_name,
-      aic_category:   r.aic_category,
-      dose:           r.dose,
-      timing:         r.timing,
-      duration:       r.duration,
-      mechanism:      r.mechanism,
-      protocol_phase: r.protocol_phase,
-      notes:          r.notes,
-    }))
+      supplements = (data ?? []).map(r => ({
+        condition_name:  r.condition_name,
+        priority:        Number(r.supplement_priority) || 99,
+      
+        product_name:    r.product_name,
+        aic_product_name:r.aic_product_name,
+        aic_match_notes: r.aic_match_notes,
+      
+        aic_category:    r.aic_category,
+        dose:            r.dose,
+        timing:          r.timing,
+        duration:        r.duration,
+        mechanism:       r.mechanism,
+        protocol_phase:  r.protocol_phase,
+        notes:           r.notes,
+      }))
   }
 
   // Step 4 — Therapies (filtered by Rych tier)
