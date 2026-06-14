@@ -9,6 +9,21 @@ import { usePageContext }  from '@/components/PageContext'
 import { useAssistant }    from '@/lib/AssistantContext'
 import { usePdfPanel, PDF_PANEL_W, ASSISTANT_W } from '@/lib/PdfPanelContext'
 
+function MessageContent({ content }: { content: string }) {
+  // Convert basic markdown to styled spans
+  const parts = content.split(/(\*\*[^*]+\*\*)/g)
+  return (
+    <span className="whitespace-pre-wrap">
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i}>{part.slice(2, -2)}</strong>
+        }
+        return <span key={i}>{part}</span>
+      })}
+    </span>
+  )
+}
+
 type Message = { role: 'user' | 'assistant'; content: string }
 
 const SECTION_SUGGESTIONS: Record<string, string[]> = {
@@ -226,7 +241,7 @@ export default function ClinicalAssistant() {
                     📄 From PDF
                   </div>
                 )}
-                {m.content}
+                <MessageContent content={m.content} />
               </div>
             </div>
           ))}
