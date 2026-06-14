@@ -7,7 +7,22 @@ import { useParams, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
 type ItemStatus = 'kb' | 'modified' | 'added' | 'removed'
-interface EditableItem { key: string; label: string; detail: string; rationale: string; doctorNote: string; status: ItemStatus; priority?: string; category?: string; phase?: string; contraindications?: string }
+interface EditableItem {
+  key: string
+  label: string
+
+  aicProduct?: string
+
+  detail: string
+  rationale: string
+  doctorNote: string
+
+  status: ItemStatus
+  priority?: string
+  category?: string
+  phase?: string
+  contraindications?: string
+}
 interface ReviewSections { supplements: EditableItem[]; therapies: EditableItem[]; dietary: EditableItem[] }
 interface ReportSummary { id: string; patient_name: string; patient_age_sex: string; rych_index: number; rych_tier: number; rych_tier_label: string; marker_count: number; conditions_flagged: string[]; contraindication_alerts: Array<{ marker: string; alert: string; severity: string }> }
 
@@ -48,6 +63,15 @@ function ItemCard({ item, onToggle, onNoteChange, onDetailChange, disabled }: { 
           </button>
           <div className="flex-1 min-w-0">
             <p className={`font-semibold text-sm ${isRemoved ? 'line-through text-slate-400' : 'text-slate-800'}`}>{item.label}</p>
+
+            {item.aicProduct && (
+    <div className="mt-1">
+      <span className="inline-flex items-center rounded-full border border-[#C8E9A8] bg-[#F2F9EC] px-2 py-0.5 text-[10px] font-medium text-[#3D6B16]">
+        AIC Product: {item.aicProduct}
+      </span>
+    </div>
+  )}
+  
             {editingDetail ? (
               <textarea autoFocus className="mt-1 w-full text-xs text-slate-600 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-amber-400" rows={2} value={item.detail} onChange={e => onDetailChange(item.key, e.target.value)} onBlur={() => setEditingDetail(false)} />
             ) : (
@@ -129,7 +153,23 @@ export default function DoctorReviewPage() {
         const therapies = ((ro as any).therapies ?? []) as any[]
         const dietary = ((ro as any).dietary ?? []) as any[]
         setSections({
-          supplements: supps.map((s, i) => ({ key: `supp_${i}`, label: s.product_name, detail: [s.dose, s.timing, s.duration].filter(Boolean).join(' · '), rationale: s.mechanism, doctorNote: '', status: 'kb' as ItemStatus, category: s.aic_category, phase: s.protocol_phase, contraindications: '' })),
+          supplements: supps.map((s, i) => ({
+            key: `supp_${i}`,
+            label: s.product_name,
+          
+            aicProduct: s.aic_product_name,
+          
+            detail: [s.dose, s.timing, s.duration]
+              .filter(Boolean)
+              .join(' · '),
+          
+            rationale: s.mechanism,
+            doctorNote: '',
+            status: 'kb' as ItemStatus,
+            category: s.aic_category,
+            phase: s.protocol_phase,
+            contraindications: '',
+          })),
           therapies: therapies.map((t, i) => ({ key: `ther_${i}`, label: t.modality || t.therapy_type, detail: [t.frequency, t.course_length].filter(Boolean).join(' · '), rationale: t.dosing_protocol, doctorNote: '', status: 'kb' as ItemStatus, category: t.therapy_type, phase: t.tier_indication, contraindications: t.contraindication_screen })),
           dietary: dietary.map((d, i) => ({ key: `diet_${i}`, label: `${d.condition_name} — ${d.phase}`, detail: d.duration, rationale: d.specific_instructions, doctorNote: '', status: 'kb' as ItemStatus, phase: d.phase, contraindications: '' })),
         })
@@ -245,7 +285,7 @@ export default function DoctorReviewPage() {
   const activeSupps = sections.supplements.filter(s => s.status !== 'removed')
   const activeTherapies = sections.therapies.filter(s => s.status !== 'removed')
   const activeDietary = sections.dietary.filter(s => s.status !== 'removed')
-
+  console.log('FIRST SUPPLEMENT', sections.supplements[0])
   return (
     <SectionPageShell
       reportId={reportId}
