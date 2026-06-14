@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { AICRulesOutput, AICRecommendation } from '@/lib/aicSupplementRules'
+import SectionPageShell, { SectionLoading } from '@/components/SectionPageShell'
+import { useSectionReport } from '@/lib/sectionPage'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,7 +67,8 @@ function RecommendationCard({ rec }: { rec: AICRecommendation }) {
             <PriorityBadge priority={rec.priority} />
             <PhaseBadge phase={rec.phase} />
             <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">
-              {rec.product.category.replace(/_/g, ' ')}
+            {rec.product.category.split('_').join(' ')}
+
             </span>
           </div>
           <h3 className="text-base font-semibold text-gray-900 mt-1">{rec.product.name}</h3>
@@ -270,12 +273,15 @@ export default function AICSupplementsPage() {
   const id     = params.id as string
   const router = useRouter()
 
-  const [report,    setReport]    = useState<Report | null>(null)
-  const [loading,   setLoading]   = useState(true)
-  const [generating,setGenerating]= useState(false)
-  const [output,    setOutput]    = useState<AICRulesOutput | null>(null)
-  const [error,     setError]     = useState<string | null>(null)
-  const [source,    setSource]    = useState<'cache' | 'generated' | null>(null)
+  // Parallel lightweight load for SectionPageShell (clinical assistant context)
+  const { report: shellReport, loading: shellLoading } = useSectionReport(id)
+
+  const [report,     setReport]     = useState<Report | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [output,     setOutput]     = useState<AICRulesOutput | null>(null)
+  const [error,      setError]      = useState<string | null>(null)
+  const [source,     setSource]     = useState<'cache' | 'generated' | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -318,122 +324,187 @@ export default function AICSupplementsPage() {
     }
   }
 
-  if (loading) return (
+  // ── Page data for Clinical Assistant sidebar ───────────────────────────────
+  const pageData = useMemo(() => {
+    if (!output) return { status: 'no_plan_generated' }
+
+    const allRecs = [
+      ...output.phase1,
+      ...output.phase2_infection_control,
+      ...output.phase2_probiotics,
+      ...output.phase2_nutrition,
+      ...output.phase3,
+    ]
+
+    return {
+      rych_index: output.rych_index,
+      total_supplements: allRecs.length,
+      critical_count: allRecs.filter(r => r.priority === 'critical').length,
+      high_count: allRecs.filter(r => r.priority === 'high').length,
+      moderate_count: allRecs.filter(r => r.priority === 'moderate').length,
+      phase1_supplements: output.phase1.map(r => ({
+        name: r.product.name,
+        dose: r.product.dose,
+        timing: r.product.timing,
+        priority: r.priority,
+        rationale: r.ai_rationale,
+        triggered_by: r.triggered_by.map(f => f.biomarker),
+      })),
+      phase2_infection_control: output.phase2_infection_control.map(r => ({
+        name: r.product.name,
+        dose: r.product.dose,
+        timing: r.product.timing,
+        priority: r.priority,
+        triggered_by: r.triggered_by.map(f => f.biomarker),
+      })),
+      phase2_probiotics: output.phase2_probiotics.map(r => ({
+        name: r.product.name,
+        dose: r.product.dose,
+        timing: r.product.timing,
+      })),
+      phase2_nutrition: output.phase2_nutrition.map(r => ({
+        name: r.product.name,
+        dose: r.product.dose,
+        timing: r.product.timing,
+        priority: r.priority,
+        triggered_by: r.triggered_by.map(f => f.biomarker),
+      })),
+      phase3_supplements: output.phase3.map(r => ({
+        name: r.product.name,
+        dose: r.product.dose,
+        timing: r.product.timing,
+      })),
+      probiotic_alternation_schedule: output.probiotic_alternation_schedule,
+      infection_control_rotation: output.infection_control_rotation,
+      clinical_warnings: output.clinical_warnings,
+      source,
+      generated_at: output.generated_at,
+      version: output.version,
+    }
+  }, [output, source])
+
+  if (loading || shellLoading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 border-2 border-[#538A22] border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
-  if (!report) return null
+  if (!report || !shellReport) return null
 
   return (
-    <div className="max-w-4xl mx-auto py-10 px-6">
+    <SectionPageShell
+      reportId={id}
+      section="aic-supplements"
+      label="AIC Supplement Plan"
+      patientName={report.patient_name}
+      pageData={pageData}
+    >
+      <div className="max-w-4xl mx-auto py-10 px-6">
 
-      <Link href={`/report/${id}`} className="text-xs text-gray-400 hover:text-[#538A22] transition mb-2 block">
-        &larr; {report.patient_name}
-      </Link>
+        <Link href={`/report/${id}`} className="text-xs text-gray-400 hover:text-[#538A22] transition mb-2 block">
+          &larr; {report.patient_name}
+        </Link>
 
-      <div className="flex items-start justify-between gap-4 mb-1">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl"></span>
-          <h1 className="text-3xl font-light text-gray-900">AIC Supplement Plan</h1>
-        </div>
-        
-      </div>
-
-      <p className="text-sm text-gray-400 mb-8">
-        Deterministic rules engine &rarr; AIC product mapping &rarr; AI clinical rationale
-      </p>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-6">
-          {error}
-        </div>
-      )}
-
-      {generating && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center mb-6">
-          <div className="w-8 h-8 border-2 border-[#538A22] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-sm text-gray-500 font-mono">Running rules engine...</p>
-          <p className="text-xs text-gray-400 mt-1">Mapping findings to AIC products and generating clinical rationales</p>
-        </div>
-      )}
-
-      {!output && !generating && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
-
-          <h3 className="text-base font-medium text-gray-900 mb-2">No supplement plan generated yet</h3>
-          <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto leading-relaxed">
-            Click Generate Plan to map this patient's report findings to AIC supplements.
-          </p>
-          <button
-            onClick={() => generate(false)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-[#538A22] hover:bg-[#3D6B16] transition"
-          >
-            Generate Plan
-          </button>
-        </div>
-      )}
-
-      {output && !generating && (
-        <>
-          {source === 'cache' && (
-            <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-400 font-mono mb-6">
-              <span>Showing cached results</span>
-              <button onClick={() => generate(true)} className="text-[#538A22] hover:text-[#3D6B16]">
-                Regenerate
-              </button>
-            </div>
-          )}
-
-          <SummaryStats output={output} />
-          <Warnings warnings={output.clinical_warnings} />
-
-          <PhaseSection
-            title="Phase 1 — Gut Restoration"
-            subtitle="Weeks 1–2: Seal the gut lining before any infection control. Complete this phase fully before moving to Phase 2."
-            color="bg-blue-100 text-blue-700 border border-blue-200"
-            recs={output.phase1}
-          />
-
-          <PhaseSection
-            title="Phase 2A — Infection Control"
-            subtitle="Weeks 3–10: Rotate antimicrobials monthly. Never run two simultaneously."
-            color="bg-red-50 text-red-700 border border-red-200"
-            recs={output.phase2_infection_control}
-            extra={output.infection_control_rotation
-              ? <RotationBanner rotation={output.infection_control_rotation} />
-              : undefined}
-          />
-
-          <PhaseSection
-            title="Phase 2B — Probiotic Rebuilding"
-            subtitle="Weeks 3–10: Alternate probiotic strains nightly. Never give the same product two nights in a row."
-            color="bg-[#E2F3D0] text-[#3D6B16] border border-[#C8E9A8]"
-            recs={output.phase2_probiotics}
-            extra={<ProbioticSchedule schedule={output.probiotic_alternation_schedule} />}
-          />
-
-          <PhaseSection
-            title="Phase 2C — Nutritional Support"
-            subtitle="Weeks 3–10: Address vitamin, mineral, and neurotransmitter deficiencies concurrently."
-            color="bg-purple-50 text-purple-700 border border-purple-200"
-            recs={output.phase2_nutrition}
-          />
-
-          <PhaseSection
-            title="Phase 3 — Maintenance"
-            subtitle="Weeks 11–12: Enzyme support once gut lining is healed. Continue core probiotics and nutrients."
-            color="bg-gray-100 text-gray-600 border border-gray-200"
-            recs={output.phase3}
-          />
-
-          <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between text-xs font-mono text-gray-400">
-            <span>AIC Rules Engine {output.version}</span>
-            <span>Generated {new Date(output.generated_at).toLocaleString()}</span>
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl"></span>
+            <h1 className="text-3xl font-light text-gray-900">AIC Supplement Plan</h1>
           </div>
-        </>
-      )}
-    </div>
+        </div>
+
+        <p className="text-sm text-gray-400 mb-8">
+          Deterministic rules engine &rarr; AIC product mapping &rarr; AI clinical rationale
+        </p>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-6">
+            {error}
+          </div>
+        )}
+
+        {generating && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center mb-6">
+            <div className="w-8 h-8 border-2 border-[#538A22] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-sm text-gray-500 font-mono">Running rules engine...</p>
+            <p className="text-xs text-gray-400 mt-1">Mapping findings to AIC products and generating clinical rationales</p>
+          </div>
+        )}
+
+        {!output && !generating && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
+            <h3 className="text-base font-medium text-gray-900 mb-2">No supplement plan generated yet</h3>
+            <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto leading-relaxed">
+              Click Generate Plan to map this patient's report findings to AIC supplements.
+            </p>
+            <button
+              onClick={() => generate(false)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-[#538A22] hover:bg-[#3D6B16] transition"
+            >
+              Generate Plan
+            </button>
+          </div>
+        )}
+
+        {output && !generating && (
+          <>
+            {source === 'cache' && (
+              <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-400 font-mono mb-6">
+                <span>Showing cached results</span>
+                <button onClick={() => generate(true)} className="text-[#538A22] hover:text-[#3D6B16]">
+                  Regenerate
+                </button>
+              </div>
+            )}
+
+            <SummaryStats output={output} />
+            <Warnings warnings={output.clinical_warnings} />
+
+            <PhaseSection
+              title="Phase 1 — Gut Restoration"
+              subtitle="Weeks 1–2: Seal the gut lining before any infection control. Complete this phase fully before moving to Phase 2."
+              color="bg-blue-100 text-blue-700 border border-blue-200"
+              recs={output.phase1}
+            />
+
+            <PhaseSection
+              title="Phase 2A — Infection Control"
+              subtitle="Weeks 3–10: Rotate antimicrobials monthly. Never run two simultaneously."
+              color="bg-red-50 text-red-700 border border-red-200"
+              recs={output.phase2_infection_control}
+              extra={output.infection_control_rotation
+                ? <RotationBanner rotation={output.infection_control_rotation} />
+                : undefined}
+            />
+
+            <PhaseSection
+              title="Phase 2B — Probiotic Rebuilding"
+              subtitle="Weeks 3–10: Alternate probiotic strains nightly. Never give the same product two nights in a row."
+              color="bg-[#E2F3D0] text-[#3D6B16] border border-[#C8E9A8]"
+              recs={output.phase2_probiotics}
+              extra={<ProbioticSchedule schedule={output.probiotic_alternation_schedule} />}
+            />
+
+            <PhaseSection
+              title="Phase 2C — Nutritional Support"
+              subtitle="Weeks 3–10: Address vitamin, mineral, and neurotransmitter deficiencies concurrently."
+              color="bg-purple-50 text-purple-700 border border-purple-200"
+              recs={output.phase2_nutrition}
+            />
+
+            <PhaseSection
+              title="Phase 3 — Maintenance"
+              subtitle="Weeks 11–12: Enzyme support once gut lining is healed. Continue core probiotics and nutrients."
+              color="bg-gray-100 text-gray-600 border border-gray-200"
+              recs={output.phase3}
+            />
+
+            <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between text-xs font-mono text-gray-400">
+              <span>AIC Rules Engine {output.version}</span>
+              <span>Generated {new Date(output.generated_at).toLocaleString()}</span>
+            </div>
+          </>
+        )}
+      </div>
+    </SectionPageShell>
   )
 }

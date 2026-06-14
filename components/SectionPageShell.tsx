@@ -28,9 +28,16 @@ export function SectionOverviewCard({
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {stats.map(s => (
-        <div key={s.label} className="bg-[#F2F9EC] border border-[#E2F3D0] rounded-xl p-4 text-center">
-          <p className={`text-2xl font-semibold ${toneClass[s.tone]}`}>{s.value}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+        <div
+          key={s.label}
+          className="bg-[#F2F9EC] border border-[#E2F3D0] rounded-xl p-4 text-center"
+        >
+          <p className={`text-2xl font-semibold ${toneClass[s.tone]}`}>
+            {s.value}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {s.label}
+          </p>
         </div>
       ))}
     </div>
@@ -53,7 +60,7 @@ export default function SectionPageShell({
   children: ReactNode
 }) {
   return (
-    <div className="max-w-3xl mx-auto py-10 px-6">
+    <>
       <PageContextRegistrar
         section={section}
         label={label}
@@ -61,7 +68,10 @@ export default function SectionPageShell({
         reportId={reportId}
         patientName={patientName}
       />
-      {children}
-    </div>
+
+      <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-8 py-6">
+        {children}
+      </div>
+    </>
   )
 }

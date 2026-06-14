@@ -220,11 +220,7 @@ export default function ClinicalAssistant() {
                 ))}
               </div>
               {/* PDF hint when PDF is not open */}
-              <div className="mt-4 border border-dashed border-[#C8E9A8] rounded-lg px-3 py-2.5 text-center">
-                <p className="text-[10px] font-mono text-[#538A22]">
-                  📄 Open the PDF panel to select text and ask about specific report values
-                </p>
-              </div>
+              
             </div>
           )}
 
