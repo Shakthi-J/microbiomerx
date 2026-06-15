@@ -1,187 +1,109 @@
+/**
+ * app/report/[id]/foundation/page.tsx
+ */
 'use client'
 
 import { useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import { SectionHeader } from '@/components/SectionHeader'
 import SectionAiPanel from '@/components/SectionAiPanel'
 import SectionPageShell, { SectionLoading } from '@/components/SectionPageShell'
 import { buildAiContextFields, useSectionAnalysis, useSectionReport } from '@/lib/sectionPage'
+import type { FoundationSpecies } from '@/lib/ExtractFoundationmicrobiota'
 
-// Keystone species with their clinical roles
-const KEYSTONE_SPECIES: Record<string, {
-  role: string
-  produces: string
-  importance: 'critical' | 'high' | 'moderate'
-  color: string
-}> = {
-  'Faecalibacterium prausnitzii': {
-    role: 'Master butyrate producer and anti-inflammatory keystone',
-    produces: 'Butyrate, anti-inflammatory compounds',
-    importance: 'critical',
-    color: 'green',
-  },
-  'Akkermansia muciniphila': {
-    role: 'Gut barrier specialist and mucin layer maintainer',
-    produces: 'Propionate, barrier-strengthening signals',
-    importance: 'critical',
-    color: 'green',
-  },
-  'Bifidobacterium longum': {
-    role: 'Immune modulator and GABA producer',
-    produces: 'GABA, acetate, B vitamins',
-    importance: 'critical',
-    color: 'blue',
-  },
-  'Bifidobacterium adolescentis': {
-    role: 'Prebiotic fibre degrader and acetate producer',
-    produces: 'Acetate, lactate',
-    importance: 'high',
-    color: 'blue',
-  },
-  'Roseburia intestinalis': {
-    role: 'Butyrate producer feeding colonocytes',
-    produces: 'Butyrate',
-    importance: 'high',
-    color: 'green',
-  },
-  'Roseburia inulinivorans': {
-    role: 'Inulin fermenter and butyrate producer',
-    produces: 'Butyrate, propionate',
-    importance: 'high',
-    color: 'green',
-  },
-  'Roseburia faecis': {
-    role: 'Resistant starch fermenter',
-    produces: 'Butyrate',
-    importance: 'high',
-    color: 'green',
-  },
-  'Ruminococcus bromii': {
-    role: 'Resistant starch degrader - keystone crossfeeder',
-    produces: 'Acetate (feeds other butyrate producers)',
-    importance: 'critical',
-    color: 'amber',
-  },
-  'Prevotella copri': {
-    role: 'Plant fibre degrader - can be pro or anti-inflammatory',
-    produces: 'Propionate, SCFA',
-    importance: 'high',
-    color: 'purple',
-  },
-  'Bacteroides thetaiotaomicron': {
-    role: 'Polysaccharide degrader and community anchor',
-    produces: 'Propionate, acetate, vitamins',
-    importance: 'high',
-    color: 'blue',
-  },
-  'Bacteroides vulgatus': {
-    role: 'Fibre degrader with immune modulatory effects',
-    produces: 'Propionate, acetate',
-    importance: 'moderate',
-    color: 'blue',
-  },
-  'Anaerostipes hadrus': {
-    role: 'Lactate consumer and butyrate producer',
-    produces: 'Butyrate via lactate cross-feeding',
-    importance: 'high',
-    color: 'green',
-  },
-  'Eubacterium hallii': {
-    role: 'Butyrate and propionate producer',
-    produces: 'Butyrate, propionate',
-    importance: 'high',
-    color: 'green',
-  },
-  'Coprococcus comes': {
-    role: 'Butyrate producer linked to mental health',
-    produces: 'Butyrate, dopamine precursors',
-    importance: 'high',
-    color: 'purple',
-  },
-  'Gemmiger formicilis': {
-    role: 'Mucosal community stabiliser',
-    produces: 'SCFA',
-    importance: 'moderate',
-    color: 'amber',
-  },
+// ─── Range bar ────────────────────────────────────────────────────────────────
+
+function RangeBar({ s }: { s: FoundationSpecies }) {
+  const range  = s.max - s.min || 1
+  const pct    = (v: number) => Math.max(0, Math.min(100, ((v - s.min) / range) * 100))
+  const refL   = pct(s.ref_low)
+  const refW   = pct(s.ref_high) - refL
+  const dotL   = pct(s.patient_value)
+  const dotClr = s.status === 'low' ? '#f87171' : s.status === 'high' ? '#f59e0b' : '#6EA832'
+
+  return (
+    <div className="mt-3">
+      <div className="relative h-2 bg-gray-100 rounded-full">
+        <div
+          className="absolute top-0 h-full rounded-full bg-[#C8E9A8]"
+          style={{ left: `${refL}%`, width: `${refW}%` }}
+        />
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3
+                     rounded-full border-2 border-white shadow z-10"
+          style={{ left: `${dotL}%`, backgroundColor: dotClr }}
+        />
+      </div>
+      <div className="flex justify-between mt-1 text-[10px] font-mono text-gray-400">
+        <span>{s.min.toFixed(3)}</span>
+        <span className="text-[#538A22]">{s.ref_low.toFixed(3)} – {s.ref_high.toFixed(3)}</span>
+        <span>{s.max.toFixed(3)}</span>
+      </div>
+    </div>
+  )
 }
 
-const IMPORTANCE_STYLE = {
-  critical: 'bg-red-50 border-red-200 text-red-700',
-  high:     'bg-amber-50 border-amber-200 text-amber-700',
-  moderate: 'bg-blue-50 border-blue-200 text-blue-700',
+// ─── Status styles ────────────────────────────────────────────────────────────
+
+const CARD_BG: Record<string, string> = {
+  normal: 'bg-[#F2F9EC] border-[#C8E9A8]',
+  low:    'bg-red-50 border-red-200',
+  high:   'bg-amber-50 border-amber-200',
 }
 
-const COLOR_MAP: Record<string, string> = {
-  green:  'bg-[#F2F9EC] border-[#C8E9A8]',
-  blue:   'bg-blue-50 border-blue-200',
-  amber:  'bg-amber-50 border-amber-200',
-  purple: 'bg-purple-50 border-purple-200',
-  red:    'bg-red-50 border-red-200',
+const BADGE: Record<string, string> = {
+  normal: 'bg-[#F2F9EC] border-[#C8E9A8] text-[#538A22]',
+  low:    'bg-red-50 border-red-200 text-red-700',
+  high:   'bg-amber-50 border-amber-200 text-amber-700',
 }
+
+const LABEL: Record<string, string> = {
+  normal: 'In range',
+  low:    'Below range',
+  high:   'Above range',
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FoundationMicrobiotaPage() {
   const id = useParams().id as string
   const { report, loading } = useSectionReport(id)
-  const [filter, setFilter] = useState<'all' | 'critical' | 'present' | 'absent'>('all')
+  const [filter, setFilter] = useState<'all' | 'low' | 'normal' | 'high'>('all')
+  const [search, setSearch] = useState('')
+
+  const species: FoundationSpecies[] = useMemo(() => {
+    const raw = (report?.report_data as any)?.foundation_microbiota
+    return Array.isArray(raw) ? raw : []
+  }, [report])
 
   const getSectionData = useMemo(
-    () => (rep: { report_data: Record<string, unknown> | null; species_list?: string[] }) => ({
-      species_present: rep.species_list,
-      keystone_present: rep.species_list?.filter(s =>
-        Object.keys(KEYSTONE_SPECIES).some(k =>
-          s.toLowerCase().includes(k.toLowerCase().split(' ')[0])
-        )
-      ),
-      rych_index: rep.report_data?.rych_index,
-      scfa: rep.report_data?.scfa,
+    () => (rep: { report_data: Record<string, unknown> | null }) => ({
+      foundation_microbiota: (rep.report_data as any)?.foundation_microbiota,
+      total:  species.length,
+      low:    species.filter(s => s.status === 'low').length,
+      high:   species.filter(s => s.status === 'high').length,
+      normal: species.filter(s => s.status === 'normal').length,
     }),
-    []
+    [species]
   )
-
-  const hasData = (report?.species_list?.length ?? 0) > 0
 
   const { analysing, analysis, error, analyse } = useSectionAnalysis(
     report,
     'Foundation Microbiota',
     getSectionData,
-    hasData
+    species.length > 0
   )
 
   if (loading) return <SectionLoading />
-  if (!report) return null
+  if (!report)  return null
 
-  const speciesList = report.species_list || []
+  const lowCount    = species.filter(s => s.status === 'low').length
+  const highCount   = species.filter(s => s.status === 'high').length
+  const normalCount = species.filter(s => s.status === 'normal').length
 
-  // Check which keystone species are present
-  const keystoneStatus = Object.entries(KEYSTONE_SPECIES).map(([name, info]) => {
-    const present = speciesList.some(s =>
-      s.toLowerCase().includes(name.toLowerCase().split(' ')[0].toLowerCase()) &&
-      s.toLowerCase().includes(name.toLowerCase().split(' ')[1]?.toLowerCase() || '')
-    )
-    return { name, ...info, present }
-  })
-
-  const presentCount = keystoneStatus.filter(s => s.present).length
-  const absentCount = keystoneStatus.filter(s => !s.present).length
-  const criticalAbsent = keystoneStatus.filter(s => !s.present && s.importance === 'critical')
-
-  const filtered = keystoneStatus.filter(s => {
-    if (filter === 'all') return true
-    if (filter === 'critical') return s.importance === 'critical'
-    if (filter === 'present') return s.present
-    if (filter === 'absent') return !s.present
-    return true
-  })
-
-  const pageData = {
-    keystone_present_count: presentCount,
-    keystone_absent_count: absentCount,
-    critical_absent: criticalAbsent.map(s => s.name),
-    species_count: speciesList.length,
-    ...buildAiContextFields(analysis, analysing, error),
-  }
+  const filtered = species
+    .filter(s => filter === 'all' || s.status === filter)
+    .filter(s => !search.trim() || s.name.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <SectionPageShell
@@ -189,177 +111,152 @@ export default function FoundationMicrobiotaPage() {
       section="foundation"
       label="Foundation Microbiota"
       patientName={report.patient_name}
-      pageData={pageData}
+      pageData={{
+        total: species.length, low: lowCount, high: highCount, normal: normalCount,
+        low_species:  species.filter(s => s.status === 'low').map(s => s.name),
+        high_species: species.filter(s => s.status === 'high').map(s => s.name),
+        ...buildAiContextFields(analysis, analysing, error),
+      }}
     >
-      <SectionHeader reportId={id} title="Foundation" />
+      <SectionHeader reportId={id} title="Foundation Microbiota" />
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#F2F9EC] border border-[#C8E9A8] rounded-xl p-4 text-center">
-          <div className="text-3xl font-bold text-[#538A22] mb-1">{presentCount}</div>
-          <div className="text-xs font-mono text-[#538A22] uppercase tracking-wide">
-            Keystone present
-          </div>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-          <div className="text-3xl font-bold text-red-600 mb-1">{absentCount}</div>
-          <div className="text-xs font-mono text-red-600 uppercase tracking-wide">
-            Keystone absent
-          </div>
-        </div>
-        <div className="bg-white border border-[#E2F3D0] rounded-xl p-4 text-center">
-          <div className="text-3xl font-bold text-gray-700 mb-1">
-            {speciesList.length}
-          </div>
-          <div className="text-xs font-mono text-gray-400 uppercase tracking-wide">
-            Total species
-          </div>
-        </div>
-      </div>
-
-      {/* Critical absent alert */}
-      {criticalAbsent.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
-          <p className="text-xs font-mono text-red-700 uppercase tracking-wide
-            font-medium mb-3">
-            ⚠ Critical keystone species absent
-          </p>
-          <div className="space-y-2">
-            {criticalAbsent.map(s => (
-              <div key={s.name} className="flex items-start gap-3">
-                <span className="text-red-500 flex-shrink-0 mt-0.5">✗</span>
-                <div>
-                  <span className="text-sm font-medium text-red-800 italic">
-                    {s.name}
-                  </span>
-                  <p className="text-xs text-red-600 mt-0.5">{s.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* ── No data ──────────────────────────────────────────────────────── */}
+      {species.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center mb-6">
+          <p className="text-sm font-medium text-amber-800 mb-1">No foundation microbiota data found</p>
+          <p className="text-xs text-amber-600">Re-upload this report to extract Foundation Microbiota data.</p>
         </div>
       )}
 
-      {/* What is foundation microbiota */}
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
-        <p className="text-xs font-mono text-blue-600 uppercase tracking-wide mb-2">
-          What is foundation microbiota
-        </p>
-        <p className="text-sm text-blue-900 leading-relaxed">
-          Foundation microbiota are keystone species whose presence or absence has
-          outsized effects on the entire microbiome ecosystem. Like a keystone in an arch,
-          removing them destabilises the whole structure. BugSpeaks tracks{' '}
-          {keystoneStatus.length} keystone species - perturbations in these can affect
-          SCFA production, immune function, gut barrier integrity, and mental health.
-        </p>
-      </div>
-
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {[
-          { id: 'all', label: `All (${keystoneStatus.length})` },
-          { id: 'critical', label: `Critical (${keystoneStatus.filter(s => s.importance === 'critical').length})` },
-          { id: 'present', label: `Present (${presentCount})` },
-          { id: 'absent', label: `Absent (${absentCount})` },
-        ].map(f => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id as any)}
-            className={`text-xs font-mono px-3 py-1.5 rounded-lg border transition
-              ${filter === f.id
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-              }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Species grid */}
-      <div className="space-y-3 mb-6">
-        {filtered.map(species => (
-          <div
-            key={species.name}
-            className={`border rounded-xl p-4 transition
-              ${species.present
-                ? COLOR_MAP[species.color] || 'bg-background border-[#E2F3D0]'
-                : 'bg-background border-gray-200 opacity-60'
-              }`}
-          >
-            <div className="flex items-start justify-between flex-wrap gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <span className={`text-sm font-medium
-                  ${species.present ? '' : 'line-through text-gray-400'}`}>
-                  {species.present ? '✓' : '✗'}
-                </span>
-                <span className={`text-sm font-medium italic
-                  ${species.present ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {species.name}
-                </span>
+      {species.length > 0 && (
+        <>
+          {/* ── Stats ──────────────────────────────────────────────────── */}
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Total detected', value: species.length, style: 'bg-white border-[#E2F3D0] text-gray-700' },
+              { label: 'In range',       value: normalCount,    style: 'bg-[#F2F9EC] border-[#C8E9A8] text-[#538A22]' },
+              { label: 'Below range',    value: lowCount,       style: 'bg-red-50 border-red-200 text-red-600' },
+              { label: 'Above range',    value: highCount,      style: 'bg-amber-50 border-amber-200 text-amber-600' },
+            ].map(c => (
+              <div key={c.label} className={`border rounded-xl p-4 text-center ${c.style}`}>
+                <div className="text-2xl font-bold mb-1">{c.value}</div>
+                <div className="text-[10px] font-mono uppercase tracking-wide opacity-80">{c.label}</div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-mono px-2 py-0.5 rounded border
-                  ${IMPORTANCE_STYLE[species.importance]}`}>
-                  {species.importance}
-                </span>
-                <span className={`text-xs font-mono px-2 py-0.5 rounded border
-                  ${species.present
-                    ? 'bg-green-100 text-green-700 border-[#C8E9A8]'
-                    : 'bg-gray-100 text-gray-500 border-gray-200'
-                  }`}>
-                  {species.present ? 'Present' : 'Absent'}
-                </span>
+            ))}
+          </div>
+
+          {/* ── Below range alert ──────────────────────────────────────── */}
+          {lowCount > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
+              <p className="text-xs font-mono text-red-700 uppercase tracking-wide font-medium mb-3">
+                ⚠ Below-range species ({lowCount})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {species.filter(s => s.status === 'low').map(s => (
+                  <span key={s.name} className="text-xs italic text-red-800 bg-red-100 border border-red-200 px-2 py-1 rounded-lg">
+                    {s.name}
+                    <span className="not-italic font-mono ml-1 text-red-500">({s.patient_value.toFixed(3)})</span>
+                  </span>
+                ))}
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-1">{species.role}</p>
-            <p className="text-xs font-mono text-gray-400">
-              Produces: {species.produces}
+          )}
+
+          {/* ── What is foundation microbiota ──────────────────────────── */}
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
+            <p className="text-xs font-mono text-blue-600 uppercase tracking-wide mb-2">What is foundation microbiota</p>
+            <p className="text-sm text-blue-900 leading-relaxed">
+              Foundation microbiota are keystone species whose presence or abundance has outsized
+              effects on the entire microbiome ecosystem. BugSpeaks detected{' '}
+              <strong>{species.length} keystone species</strong> in this report — perturbations
+              in these affect SCFA production, immune function, gut barrier integrity, and mental health.
             </p>
           </div>
-        ))}
-      </div>
 
-      {/* Keystone importance legend */}
-      <div className="bg-white border border-[#E2F3D0] rounded-xl p-5 mb-6">
-        <p className="text-xs font-mono text-gray-400 uppercase tracking-widest mb-4">
-          Importance classification
-        </p>
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            {
-              level: 'critical',
-              label: 'Critical keystone',
-              desc: 'Absence significantly impacts SCFA production, gut barrier, or immune function',
-              style: IMPORTANCE_STYLE.critical,
-            },
-            {
-              level: 'high',
-              label: 'High importance',
-              desc: 'Important contributors to microbiome resilience and metabolic function',
-              style: IMPORTANCE_STYLE.high,
-            },
-            {
-              level: 'moderate',
-              label: 'Moderate importance',
-              desc: 'Beneficial presence but absence has lower immediate clinical impact',
-              style: IMPORTANCE_STYLE.moderate,
-            },
-          ].map(item => (
-            <div key={item.level} className={`border rounded-xl p-3 ${item.style}`}>
-              <div className="text-xs font-medium mb-1">{item.label}</div>
-              <div className="text-xs leading-relaxed opacity-80">{item.desc}</div>
+          {/* ── Filters + search ───────────────────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {[
+              { id: 'all',    label: `All (${species.length})` },
+              { id: 'low',    label: `Below range (${lowCount})` },
+              { id: 'normal', label: `In range (${normalCount})` },
+              { id: 'high',   label: `Above range (${highCount})` },
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id as any)}
+                className={`text-xs font-mono px-3 py-1.5 rounded-lg border transition
+                  ${filter === f.id
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <input
+              type="text"
+              placeholder="Search species…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="ml-auto text-xs font-mono px-3 py-1.5 rounded-lg border border-gray-200
+                         focus:outline-none focus:border-[#8BC44F] bg-white text-gray-700
+                         placeholder-gray-300 w-44"
+            />
+          </div>
+
+          {/* ── Species list ───────────────────────────────────────────── */}
+          <div className="space-y-3 mb-6">
+            {filtered.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-8 font-mono">No species match.</p>
+            )}
+            {filtered.map(s => (
+              <div key={s.name} className={`border rounded-xl p-4 ${CARD_BG[s.status]}`}>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+                  <span className="text-sm font-medium italic text-gray-900">{s.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${BADGE[s.status]}`}>
+                      {s.patient_value.toFixed(3)}
+                    </span>
+                    <span className={`text-xs font-mono px-2 py-0.5 rounded border ${BADGE[s.status]}`}>
+                      {LABEL[s.status]}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[10px] font-mono text-gray-400">
+                  Ref: {s.ref_low.toFixed(3)} – {s.ref_high.toFixed(3)}
+                  &nbsp;|&nbsp;IQR: {s.p25.toFixed(3)} – {s.p75.toFixed(3)}
+                </p>
+                <RangeBar s={s} />
+              </div>
+            ))}
+          </div>
+
+          {/* ── Legend ─────────────────────────────────────────────────── */}
+          <div className="bg-white border border-[#E2F3D0] rounded-xl p-5 mb-6">
+            <p className="text-xs font-mono text-gray-400 uppercase tracking-widest mb-4">How to read the bars</p>
+            <div className="grid grid-cols-3 gap-4 text-xs">
+              <div className="flex gap-2 items-start">
+                <div className="mt-1 w-4 h-2 rounded-full bg-[#C8E9A8] flex-shrink-0" />
+                <div><div className="font-medium text-gray-700 mb-0.5">Green zone</div><div className="text-gray-500">Reference range for healthy population</div></div>
+              </div>
+              <div className="flex gap-2 items-start">
+                <div className="mt-0.5 w-3 h-3 rounded-full bg-[#6EA832] border-2 border-white shadow flex-shrink-0" />
+                <div><div className="font-medium text-gray-700 mb-0.5">Green dot</div><div className="text-gray-500">Patient value within range</div></div>
+              </div>
+              <div className="flex gap-2 items-start">
+                <div className="mt-0.5 w-3 h-3 rounded-full bg-red-400 border-2 border-white shadow flex-shrink-0" />
+                <div><div className="font-medium text-gray-700 mb-0.5">Red / amber dot</div><div className="text-gray-500">Patient value outside range</div></div>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
       <SectionAiPanel
         analysis={analysis}
         analysing={analysing}
         error={error}
         onRegenerate={() => report && analyse(report)}
-        loadingMessage="Analysing keystone species profile…"
+        loadingMessage="Analysing foundation microbiota profile…"
       />
     </SectionPageShell>
   )

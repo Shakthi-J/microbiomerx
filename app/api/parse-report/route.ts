@@ -7,82 +7,143 @@ import {
   sanitiseDietaryRx,
 } from '@/lib/extractDietaryRx'
 import { extractNutritionFromPages } from '@/lib/extractNutrition'
+import { extractFoundationMicrobiota } from '@/lib/ExtractFoundationmicrobiota'
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 
 function extractScoreBefore(text: string, label: string): number | null {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = new RegExp(`(\\d+\\.?\\d*)\\s*\\n\\s*${escaped}`, 'i')
-  const match = text.match(pattern)
-  if (match) return parseFloat(match[1])
-  return null
+  const match = text.match(new RegExp(`(\\d+\\.?\\d*)\\s*\\n\\s*${escaped}`, 'i'))
+  return match ? parseFloat(match[1]) : null
 }
 
 function extractPercentAfter(text: string, label: string): number | null {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = new RegExp(`${escaped}\\s+(\\d+\\.?\\d*)%`, 'i')
-  const match = text.match(pattern)
-  if (match) return parseFloat(match[1])
-  return null
+  const match = text.match(new RegExp(`${escaped}\\s+(\\d+\\.?\\d*)%`, 'i'))
+  return match ? parseFloat(match[1]) : null
 }
 
 // ── Pathogen extraction ───────────────────────────────────────────────────────
-const ALL_KNOWN_PATHOGENS = [
-  'Campylobacter jejuni', 'Clostridioides difficile', 'Escherichia coli',
-  'Helicobacter pylori', 'Salmonella enterica', 'Shigella dysenteriae',
-  'Vibrio cholerae', 'Yersinia enterocolitica', 'Klebsiella pneumoniae',
-  'Mycobacterium avium', 'Proteus mirabilis', 'Citrobacter freundii',
-  'Fusobacterium nucleatum', 'Bacillus cereus', 'Enterococcus faecalis',
-  'Enterococcus faecium', 'Listeria monocytogenes', 'Pseudomonas aeruginosa',
-  'Staphylococcus aureus', 'Staphylococcus epidermidis', 'Staphylococcus saprophyticus',
-  'Streptococcus agalactiae', 'Streptococcus pneumoniae', 'Giardia intestinalis',
-  'Necator americanus', 'Trichuris trichiura', 'Ancylostoma duodenale',
-  'Ascaris lumbricoides', 'Blastocystis hominis', 'Chilomastix mesnili',
-  'Cryptosporidium', 'Dientamoeba fragilis', 'Endolimax nana', 'Entamoeba coli',
-  'Entamoeba histolytica', 'Pentatrichomonas hominis', 'Candida albicans',
-  'Candida glabrata', 'Candida tropicalis', 'Candida parapsilosis', 'Candida krusei',
-  'Aspergillus fumigatus', 'Aspergillus flavus', 'Aspergillus niger',
-  'Aspergillus terreus', 'Aspergillus nidulans',
-]
+
+export interface PathogenSpecies {
+  name: string
+  patient_value: number
+  min: number
+  p25: number
+  ref_low: number
+  ref_high: number
+  p75: number
+  max: number
+  status: 'low' | 'normal' | 'high'
+}
+
+function isPathogenName(line: string): boolean {
+  const t = line.trim()
+  if (!t || t.length > 60 || /\d/.test(t)) return false
+  const words = t.split(/\s+/)
+  if (words.length < 2 || words.length > 4) return false
+  return /^[A-Z][a-z]{2,25}$/.test(words[0]) && /^[a-z]{3,30}$/.test(words[1])
+}
+
+function parseNums(line: string): number[] {
+  return line.split(/\s+/).map(t => parseFloat(t)).filter(n => !isNaN(n) && isFinite(n) && n >= 0)
+}
+
+function derivePathogenStatus(v: number, lo: number, hi: number): 'low' | 'normal' | 'high' {
+  if (v < lo) return 'low'
+  if (v > hi) return 'high'
+  return 'normal'
+}
+
+function extractPathogenData(text: string): PathogenSpecies[] {
+  const ANCHOR_PATTERNS = [
+    /Pathogen Characterization\s+BugSpeaks[\s\S]{0,300}Handbook Page No\.\s*21\)/i,
+    /BugSpeaks[\s\S]{0,50}identifies and characterizes many pathogens[\s\S]{0,200}Handbook Page No\.\s*21\)/i,
+    /identifies and characterizes many pathogens[\s\S]{0,100}gut infections[\s\S]{0,100}Handbook Page No\.\s*21\)/i,
+    /PATHOGEN\s+CHARACTERIZATION/i,
+  ]
+
+  let startIdx = -1
+  for (const pattern of ANCHOR_PATTERNS) {
+    const m = text.match(pattern)
+    if (m && m.index !== undefined) {
+      startIdx = m.index + m[0].length
+      console.log('[Pathogens] Anchor found, starting at index:', startIdx)
+      break
+    }
+  }
+
+  if (startIdx === -1) {
+    console.warn('[Pathogens] Anchor not found')
+    return []
+  }
+
+  const chunk = text.slice(startIdx, startIdx + 15000)
+  const endMatch = chunk.search(/\n(?:ANTIBIOTIC|PROBIOTIC|FOUNDATION|DIVERSITY|SCFA|VITAMIN|NEURO|DISEASE|HEALTH|KINGDOM|Summary Report)/i)
+  const sectionText = endMatch !== -1 ? chunk.slice(0, endMatch) : chunk
+
+  console.log('[Pathogens] Section isolated, length:', sectionText.length)
+
+  const lines = sectionText.split('\n').map((l: string) => l.trim()).filter(Boolean)
+  const results: PathogenSpecies[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+    if (!isPathogenName(line)) { i++; continue }
+
+    const words = line.split(/\s+/).filter((w: string) => /^[A-Za-z]+$/.test(w))
+    const name = words.slice(0, words.length >= 3 ? 3 : 2).join(' ')
+
+    let patientValue: number | null = null
+    let boundaries: number[] | null = null
+
+    if (i > 0) {
+      const prev = parseNums(lines[i - 1])
+      if (prev.length === 1) patientValue = prev[0]
+    }
+
+    for (let j = 1; j <= 5 && i + j < lines.length; j++) {
+      const ahead = lines[i + j]
+      if (isPathogenName(ahead)) break
+      const nums = parseNums(ahead)
+      if (nums.length === 6 && !boundaries) { boundaries = nums; break }
+      if (nums.length === 7 && !boundaries) {
+        if (!patientValue) patientValue = nums[0]
+        boundaries = nums.slice(1)
+        break
+      }
+      if (nums.length === 1 && !patientValue) patientValue = nums[0]
+    }
+
+    if (boundaries && patientValue !== null) {
+      const [min, p25, ref_low, ref_high, p75, max] = boundaries
+      if (min <= max && ref_low <= ref_high) {
+        const status = derivePathogenStatus(patientValue, ref_low, ref_high)
+        results.push({ name, patient_value: patientValue, min, p25, ref_low, ref_high, p75, max, status })
+        console.log(`[Pathogens] + ${name} -> ${patientValue} (${status})`)
+      }
+    } else {
+      console.log(`[Pathogens] - ${name} missing patient:${patientValue} boundaries:${JSON.stringify(boundaries)}`)
+    }
+    i++
+  }
+
+  console.log('[Pathogens] Total extracted:', results.length)
+  return results
+}
 
 function extractDetectedPathogens(text: string): string[] {
-  const detected: string[] = []
-  const badMicrobesMatch = text.match(
-    /Pathogen[\s\S]{0,30}Bad Microbes[\s\S]*?abundance was found to be more than[\s\S]{0,800}/i
-  )
-  if (badMicrobesMatch) {
-    for (const name of ALL_KNOWN_PATHOGENS) {
-      if (badMicrobesMatch[0].includes(name)) detected.push(name)
-    }
-    if (detected.length > 0) return [...new Set(detected)]
-  }
-  const beforeSummary = text.match(/([\s\S]{0,1000})Summary Report/i)
-  if (beforeSummary) {
-    for (const name of ALL_KNOWN_PATHOGENS) {
-      if (beforeSummary[1].includes(name)) detected.push(name)
-    }
-    if (detected.length > 0) return [...new Set(detected)]
-  }
-  const followRecsBlocks = [...text.matchAll(/Please follow recommendations[\s\S]{0,200}/gi)]
-  for (const block of followRecsBlocks) {
-    for (const name of ALL_KNOWN_PATHOGENS) {
-      if (block[0].includes(name)) detected.push(name)
-    }
-  }
-  return [...new Set(detected)]
+  return extractPathogenData(text).map(p => p.name)
 }
 
 function extractPathogenCategoryTag(text: string): string | null {
-  const match = text.match(
-    /Pathogen Characterization[\s\S]{0,300}(Ideal|Average|Below Average|Above Average|Non-Ideal)/i
-  )
-  return match ? match[1] : null
+  const m = text.match(/Pathogen Characterization[\s\S]{0,300}(Ideal|Average|Below Average|Above Average|Non-Ideal)/i)
+  return m ? m[1] : null
 }
 
-// ── Antibiotic extraction ─────────────────────────────────────────────────────
-/**
- * Complete list of all antibiotics tracked by BugSpeaks across all report versions.
- */
+// ── Antibiotic extraction — anchor-based ──────────────────────────────────────
+
 const KNOWN_ANTIBIOTICS = [
   'Amikacin', 'Aminocoumarin', 'Amoxicillin', 'Amoxicillin+Clavulanic_Acid',
   'Ampicillin', 'Ampicillin+Clavulanic_Acid', 'Avilamycin', 'Azithromycin',
@@ -107,82 +168,67 @@ const KNOWN_ANTIBIOTICS = [
   'Vancomycin', 'Viomycin', 'Virginiamycin_M', 'Virginiamycin_S', 'Zorbamycin',
 ]
 
-/**
- * Extract antibiotic → status from BugSpeaks report.
- *
- * BugSpeaks uses two different status labels depending on report version:
- *   Newer reports:  "Sensitive"   / "Resistant"
- *   Older reports:  "Susceptible" / "Resistant"
- *
- * Both are normalized to "Sensitive" / "Resistant" for consistency.
- *
- * Strategy: search for each known antibiotic name individually (no section
- * isolation) — same proven approach as pathogen extraction.
- */
-function extractAntibioticResistance(text: string): Record<string, string> {
-  const result: Record<string, string> = {}
-
-  for (const ab of KNOWN_ANTIBIOTICS) {
-    const escaped = ab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-    // Handles both same-line and newline-separated name + status
-    // Matches: "Amikacin Sensitive", "Amikacin\nSensitive", "Amikacin Susceptible"
-    const pattern = new RegExp(
-      `${escaped}\\s*\\n?\\s*(Sensitive|Susceptible|Resistant)`,
-      'i'
-    )
-    const match = text.match(pattern)
-    if (match) {
-      const rawStatus = match[1].trim()
-      // Normalize: Susceptible → Sensitive (older report format)
-      result[ab] = rawStatus.toLowerCase() === 'susceptible' ? 'Sensitive' : rawStatus
+function isolateAntibioticSection(text: string): string {
+  const patterns = [
+    /Antibiotic Recovery Potential[\s\S]{0,50}Antibiotics are known to disrupt[\s\S]{0,300}Handbook Page No\.\s*21\)/i,
+    /Antibiotics are known to disrupt the microbiota ecosystem[\s\S]{0,300}Handbook Page No\.\s*21\)/i,
+    /ANTIBIOTIC\s+RESISTANCE[\s\S]{0,20}RECOVERY/i,
+    /Antibiotic Resistance[\s\S]{0,100}Handbook Page No\.\s*21\)/i,
+  ]
+  for (const pattern of patterns) {
+    const m = text.match(pattern)
+    if (m && m.index !== undefined) {
+      const chunk = text.slice(m.index, m.index + 12000)
+      const endMatch = chunk.search(/\n(?:PROBIOTIC|PATHOGEN|FOUNDATION|DIVERSITY|SCFA|VITAMIN|NEURO|DISEASE|HEALTH|KINGDOM|Summary Report)/i)
+      const section = endMatch !== -1 ? chunk.slice(0, endMatch) : chunk
+      console.log('[Antibiotics] Section isolated, length:', section.length)
+      return section
     }
   }
+  console.warn('[Antibiotics] Anchor not found - using full text')
+  return text
+}
 
+function extractAntibioticResistance(text: string): Record<string, string> {
+  const section = isolateAntibioticSection(text)
+  const result: Record<string, string> = {}
+  for (const ab of KNOWN_ANTIBIOTICS) {
+    const escaped = ab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const pattern = new RegExp(`${escaped}\\s*\\n?\\s*(Sensitive|Susceptible|Resistant)`, 'i')
+    const m = section.match(pattern)
+    if (m) result[ab] = m[1].toLowerCase() === 'susceptible' ? 'Sensitive' : m[1]
+  }
+  console.log('[Antibiotics] Resistance entries found:', Object.keys(result).length)
   return result
 }
 
 function extractAntibioticResistanceCategoryTag(text: string): string | null {
-  const match = text.match(
-    /Antibiotic Resistance[\s\S]{0,300}(Ideal|Average|Below Average|Above Average|Non-Ideal)/i
-  )
-  return match ? match[1] : null
+  const section = isolateAntibioticSection(text)
+  const m = section.match(/(Ideal|Average|Below Average|Above Average|Non-Ideal)/i)
+  return m ? m[1] : null
 }
 
 function extractAntibioticRecoveryCategoryTag(text: string): string | null {
-  const match = text.match(
-    /(?:Microbiota Recovery|Antibiotic Recovery)[\s\S]{0,300}(Ideal|Average|Below Average|Above Average|Non-Ideal)/i
-  )
-  return match ? match[1] : null
+  const section = isolateAntibioticSection(text)
+  const m = section.match(/(?:Microbiota Recovery|Antibiotic Recovery)[\s\S]{0,300}(Ideal|Average|Below Average|Above Average|Non-Ideal)/i)
+  return m ? m[1] : null
 }
 
-
-// ── Antibiotic recovery score extraction ──────────────────────────────────────
-/**
- * Extracts the Antibiotic Recovery Potential score.
- *
- * BUG FIX: extractScoreBefore was matching the PAGE NUMBER (e.g. "29" from
- * "Page 29 of 45") that appears in the PDF footer just before the section
- * heading "Antibiotic Recovery Potential".
- *
- * FIX: Require a decimal point in the score (e.g. 72.997, 62.283).
- * Page numbers are always integers — they never have decimal points.
- */
 function extractAntibioticRecoveryScore(text: string): number | null {
-  // Pattern 1: decimal score on line BEFORE the label
-  const beforeMatch = text.match(/(\d+\.\d+)\s*\n\s*Antibiotic Recovery Potential/i)
-  if (beforeMatch) return parseFloat(beforeMatch[1])
-
-  // Pattern 2: decimal score on line AFTER the label
-  const afterMatch = text.match(/Antibiotic Recovery Potential\s*\n\s*(\d+\.\d+)/i)
-  if (afterMatch) return parseFloat(afterMatch[1])
-
-  // Pattern 3: decimal score on SAME line as label
-  const sameLineMatch = text.match(/Antibiotic Recovery Potential\s+(\d+\.\d+)/i)
-  if (sameLineMatch) return parseFloat(sameLineMatch[1])
-
+  const section = isolateAntibioticSection(text)
+  const a = section.match(/(\d+\.\d+)\s*\n\s*Antibiotic Recovery Potential/i)
+  if (a) { console.log('[Antibiotics] Recovery score (before):', a[1]); return parseFloat(a[1]) }
+  const b = section.match(/Antibiotic Recovery Potential\s*\n\s*(\d+\.\d+)/i)
+  if (b) { console.log('[Antibiotics] Recovery score (after):', b[1]); return parseFloat(b[1]) }
+  const c = section.match(/Antibiotic Recovery Potential\s+(\d+\.\d+)/i)
+  if (c) { console.log('[Antibiotics] Recovery score (inline):', c[1]); return parseFloat(c[1]) }
+  const d = section.match(/(\d{2,3}\.\d+)\s*\n?\s*65\.14/i)
+  if (d) { console.log('[Antibiotics] Recovery score (ref-adjacent):', d[1]); return parseFloat(d[1]) }
+  console.warn('[Antibiotics] Recovery score not found')
   return null
 }
+
+// ── Scores ────────────────────────────────────────────────────────────────────
 
 function parseScores(text: string) {
   const nameMatch       = text.match(/Name:\s*([^\n]+?)\s*Sample Collection/m)
@@ -191,12 +237,8 @@ function parseScores(text: string) {
   const idMatch         = text.match(/ID:\s*([A-Z0-9]+)/i)
   const collectionMatch = text.match(/Sample Collection Date:\s*(\d{4}-\d{2}-\d{2})/i)
   const reportMatch     = text.match(/Report Generated Date:\s*(\d{4}-\d{2}-\d{2})/i)
-
-  const rychMatch    = text.match(/YOUR SCORE\s*\n\s*(\d+)\s*\n\s*0\s+20/i)
-  const rychFallback = text.match(/Rych Index[^\n]*\n\s*(\d+(?:\.\d+)?)\s*\n/i)
-  const rych_index   = rychMatch
-    ? parseFloat(rychMatch[1])
-    : rychFallback ? parseFloat(rychFallback[1]) : null
+  const rychMatch       = text.match(/YOUR SCORE\s*\n\s*(\d+)\s*\n\s*0\s+20/i)
+  const rychFallback    = text.match(/Rych Index[^\n]*\n\s*(\d+(?:\.\d+)?)\s*\n/i)
 
   return {
     patient: {
@@ -207,7 +249,7 @@ function parseScores(text: string) {
       collection_date: collectionMatch?.[1] || null,
       report_date:     reportMatch?.[1] || null,
     },
-    rych_index,
+    rych_index: rychMatch ? parseFloat(rychMatch[1]) : rychFallback ? parseFloat(rychFallback[1]) : null,
     scfa: {
       acetate:            extractScoreBefore(text, 'Acetate'),
       propionate:         extractScoreBefore(text, 'Propionate'),
@@ -292,16 +334,12 @@ function parseScores(text: string) {
   }
 }
 
+// ── Probiotics ────────────────────────────────────────────────────────────────
+
 function parseProbioticSummary(pages: { text: string; words: any[] }[]): {
   absent: string[]; low_optimal: string[]; high_optimal: string[]
   optimal: string[]; atypical_high: string[]
 } | null {
-  const GENERA = [
-    'Lactobacillus', 'Bifidobacterium', 'Lacticaseibacillus', 'Lactiplantibacillus',
-    'Limosilactobacillus', 'Ligilactobacillus', 'Levilactobacillus', 'Akkermansia',
-    'Clostridium', 'Enterococcus', 'Streptococcus', 'Saccharomyces',
-    'Bacillus', 'Leuconostoc', 'Pediococcus', 'Lactococcus',
-  ]
   for (const page of pages) {
     if (!page.text.includes('Probiotic Supplementation Summary')) continue
     const result = { absent: [] as string[], low_optimal: [] as string[], high_optimal: [] as string[], optimal: [] as string[], atypical_high: [] as string[] }
@@ -321,11 +359,11 @@ function parseProbioticSummary(pages: { text: string; words: any[] }[]): {
       let i = 0
       while (i < lw.length) {
         const w = lw[i]; const x = w.x0; const t = w.text
-        if (GENERA.includes(t)) {
+        if (/^[A-Z][a-z]{2,}$/.test(t) && i + 1 < lw.length && /^[a-z]{3,}$/.test(lw[i + 1]?.text || '')) {
           const speciesParts = [t]; let j = i + 1
           while (j < lw.length) {
             const nw = lw[j]
-            if (Math.abs(nw.x0 - x) < 220 && nw.text && nw.text[0] === nw.text[0].toLowerCase()) { speciesParts.push(nw.text); j++ } else break
+            if (Math.abs(nw.x0 - x) < 220 && /^[a-z]{2,}$/.test(nw.text)) { speciesParts.push(nw.text); j++ } else break
           }
           const species = speciesParts.join(' ')
           if (x < 200) result.absent.push(species)
@@ -340,6 +378,8 @@ function parseProbioticSummary(pages: { text: string; words: any[] }[]): {
   return null
 }
 
+// ── Dietary Rx ────────────────────────────────────────────────────────────────
+
 async function parseDietaryRx(pages: Array<{ text: string; words: any[]; operatorList?: any }>, fullText: string): Promise<{ categories: any[]; method: string } | null> {
   try {
     if (!hasDietarySection(fullText)) return null
@@ -353,10 +393,12 @@ async function parseDietaryRx(pages: Array<{ text: string; words: any[]; operato
     if (groqResult.length >= 3) return { categories: groqResult, method: 'groq_70b' }
     return null
   } catch (e) {
-    console.warn('[parse-report] dietary_rx failed (non-critical):', e)
+    console.warn('[parse-report] dietary_rx failed:', e)
     return null
   }
 }
+
+// ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
@@ -370,31 +412,33 @@ export async function POST(req: NextRequest) {
 
     let speciesList: string[] = []
     try {
-      const speciesResponse = await groq.chat.completions.create({
+      const res = await groq.chat.completions.create({
         model: 'llama-3.1-8b-instant', max_tokens: 2000, temperature: 0,
         messages: [
-          { role: 'system', content: `Extract ALL microbial species names from this gut microbiome report. Include bacteria, fungi, archaea. Use genus + species format. Return ONLY: { "species": ["species 1", "species 2", ...] } No duplicates.` },
+          { role: 'system', content: 'Extract ALL microbial species names from this gut microbiome report. Include bacteria, fungi, archaea. Use genus + species format. Return ONLY: { "species": ["species 1", "species 2", ...] } No duplicates.' },
           { role: 'user', content: text.slice(0, 20000) },
         ],
         response_format: { type: 'json_object' },
       })
-      speciesList = JSON.parse(speciesResponse.choices[0]?.message?.content || '{}').species || []
+      speciesList = JSON.parse(res.choices[0]?.message?.content || '{}').species || []
     } catch { speciesList = [] }
 
-    const pathogensDetected        = extractDetectedPathogens(text)
-    const pathogenCategoryTag      = extractPathogenCategoryTag(text)
-    const antibioticResistance     = extractAntibioticResistance(text)
-    const antibioticResistanceTag  = extractAntibioticResistanceCategoryTag(text)
-    const antibioticRecoveryTag    = extractAntibioticRecoveryCategoryTag(text)
-
-    const dietaryResult = await parseDietaryRx(pages ?? [], text)
-    const nutrition     = pages?.length ? extractNutritionFromPages(pages) : null
+    const foundation_microbiota     = extractFoundationMicrobiota(text)
+    const pathogens_data            = extractPathogenData(text)
+    const pathogensDetected         = pathogens_data.map(p => p.name)
+    const pathogenCategoryTag       = extractPathogenCategoryTag(text)
+    const antibioticResistance      = extractAntibioticResistance(text)
+    const antibioticResistanceTag   = extractAntibioticResistanceCategoryTag(text)
+    const antibioticRecoveryTag     = extractAntibioticRecoveryCategoryTag(text)
+    const dietaryResult             = await parseDietaryRx(pages ?? [], text)
+    const nutrition                 = pages?.length ? extractNutritionFromPages(pages) : null
 
     const finalData = {
       ...scoresData,
       species_list:              speciesList,
       probiotics:                probiotics || { absent: [], low_optimal: [], high_optimal: [], optimal: [], atypical_high: [] },
       pathogens_detected:        pathogensDetected,
+      pathogens_data:            pathogens_data,
       pathogen_category_tag:     pathogenCategoryTag,
       antibiotic_resistance:     antibioticResistance,
       antibiotic_resistance_tag: antibioticResistanceTag,
@@ -404,6 +448,7 @@ export async function POST(req: NextRequest) {
       dietary_rx_parsed_at:      dietaryResult ? new Date().toISOString() : null,
       dietary_rx_method:         dietaryResult?.method ?? null,
       nutrition,
+      foundation_microbiota,
     }
 
     return NextResponse.json({ data: finalData })

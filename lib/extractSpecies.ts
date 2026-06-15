@@ -1,3 +1,11 @@
+/**
+ * extractSpecies.ts
+ *
+ * Dynamic species extraction — no KNOWN_GENERA hardcoded list.
+ * Detects any scientific name (Genus species) from PDF text using
+ * biological suffix patterns to filter out English false positives.
+ */
+
 export type ExtractedPatient = {
   name: string
   age_sex: string
@@ -5,6 +13,18 @@ export type ExtractedPatient = {
   diet_type: string
   medical_history: string
   allergies: string
+}
+
+export type FoundationSpecies = {
+  name: string
+  patient_value: number
+  min: number
+  p25: number
+  ref_low: number
+  ref_high: number
+  p75: number
+  max: number
+  status: 'low' | 'normal' | 'high'
 }
 
 export type ReportData = {
@@ -31,7 +51,27 @@ export type ReportData = {
   }
   probiotic_recommendations: string[]
   pathogens_detected: string[]
+  pathogen_category_tag: string | null
+  pathogens_data: Array<{
+    name: string
+    patient_value: number
+    min: number
+    p25: number
+    ref_low: number
+    ref_high: number
+    p75: number
+    max: number
+    status: 'low' | 'normal' | 'high'
+  }>
+  antibiotic_resistance: Record<string, string>
+  antibiotic_resistance_tag: string | null
+  antibiotic_recovery_tag: string | null
   species_list: string[]
+  foundation_microbiota: FoundationSpecies[]
+  dietary_rx: any[] | null
+  dietary_rx_method: string | null
+  dietary_rx_parsed_at: string | null
+  nutrition: any | null
   nutrition_data?: Record<string, Record<string, [string, string, string]>>
 }
 
@@ -42,47 +82,54 @@ export type PDFExtractResult = {
   rawText: string
 }
 
-const KNOWN_GENERA = [
-  'Agathobaculum','Alistipes','Anaerostipes','Bacteroides','Barnesiella',
-  'Bifidobacterium','Blautia','Butyricicoccus','Butyrivibrio','Clostridium',
-  'Collinsella','Coprococcus','Dialister','Dorea','Enterococcus',
-  'Eubacterium','Faecalibacterium','Fusicatenibacter','Gemmiger',
-  'Helicobacter','Holdemanella','Intestinimonas','Klebsiella',
-  'Lachnoclostridium','Lactobacillus','Lacticaseibacillus',
-  'Lactiplantibacillus','Ligilactobacillus','Limosilactobacillus',
-  'Levilactobacillus','Megamonas','Methanobrevibacter','Mitsuokella',
-  'Odoribacter','Parabacteroides','Phascolarctobacterium','Prevotella',
-  'Roseburia','Ruminococcus','Streptococcus','Subdoligranulum',
-  'Veillonella','Akkermansia','Desulfovibrio','Fusobacterium',
-  'Peptostreptococcus','Oscillibacter','Butyricimonas',
-  'Mediterraneibacter','Lawsonibacter','Anaerobutyricum',
-  'Pediococcus','Bacillus','Enterobacter','Escherichia',
-  'Salmonella','Campylobacter','Clostridoides','Clostridioides',
-  'Erysipelatoclostridium','Holdemania','Coprobacillus',
-  'Eisenbergiella','Flavonifractor','Intestinibacter','Mogibacterium',
-  'Parasutterella','Rothia','Sutterella','Turicibacter',
-]
+// ─── Common words that look like species epithets — used to filter false ──────
+// positives when scanning raw PDF text for scientific names.
+const COMMON_WORDS = new Set([
+  'the','and','for','are','with','from','this','that','have','been','were',
+  'will','not','but','can','all','more','was','its','has','had','our','may',
+  'any','one','two','new','per','due','via','use','used','also','into','than',
+  'some','your','their','each','both','only','very','such','over','high','low',
+  'rate','type','risk','data','age','sex','level','test','page','date','name',
+  'case','care','dose','drug','diet','time','body','cell','gene','form',
+  'acid','base','mass','site','role','mode','line','note','text','list',
+  'report','sample','result','figure','section','score','index','value',
+  'potential','indicator','management','metabolism','production',
+])
 
-// ── Nutrition trigger keywords — only pages with these get operatorList ───────
-const NUTRITION_TRIGGERS = ['NUTRITIONAL', 'Greens', 'Vegetables', 'Legumes', 'Cereals']
-
+/**
+ * Extracts all scientific names dynamically from text.
+ *
+ * Genus detection: first word must end with a known biological suffix.
+ * This eliminates common English words (e.g. "Please", "Name", "Sample")
+ * while catching real genera (Bacteroides, Faecalibacterium, Bifidobacterium…).
+ *
+ * Epithet detection: all-lowercase, ≥3 chars, not a common English word,
+ * not ending in -ing/-tion/-ness/-ment (English suffixes).
+ */
 function extractSpeciesFromText(text: string): string[] {
-  const speciesFound = new Set<string>()
-  for (const genus of KNOWN_GENERA) {
-    const pattern = new RegExp(`${genus}\\s+([a-z][a-z]{2,})`, 'g')
-    let match
-    while ((match = pattern.exec(text)) !== null) {
-      const species = match[1]
-      if (['the','and','for','are','with','from','this','that'].includes(species)) continue
-      speciesFound.add(`${genus} ${species}`)
-    }
+  const found = new Set<string>()
+
+  const pattern = /\b([A-Z][a-z]{2,}(?:us|ia|um|is|er|ium|bacter|coccus|ella|oides|ales|aceae|cter|monas|vibrio|plasma|phila|rella|nella|myces|bacillus|bacterium|clostridium))\s+([a-z]{3,})\b/g
+
+  let match
+  while ((match = pattern.exec(text)) !== null) {
+    const genus   = match[1]
+    const epithet = match[2]
+
+    if (COMMON_WORDS.has(epithet)) continue
+    if (/ing$|tion$|ness$|ment$|ance$|ence$/.test(epithet)) continue
+
+    found.add(`${genus} ${epithet}`)
   }
-  return Array.from(speciesFound)
+
+  return Array.from(found)
 }
+
+// ─── Nutrition trigger keywords ───────────────────────────────────────────────
+const NUTRITION_TRIGGERS = ['NUTRITIONAL', 'Greens', 'Vegetables', 'Legumes', 'Cereals']
 
 type PageData = { text: string; words: any[]; operatorList?: any }
 
-// ── Process a single page — text only, no operatorList ───────────────────────
 async function extractPageText(
   pdf: any,
   pageNum: number
@@ -123,7 +170,6 @@ async function extractPageText(
   return { text: text + '\n', words }
 }
 
-// ── Fetch operatorList for a single page (nutrition pages only) ───────────────
 async function attachOperatorList(pdf: any, pageNum: number): Promise<any> {
   try {
     const page = await pdf.getPage(pageNum)
@@ -143,18 +189,16 @@ async function getPDFData(file: File): Promise<{ fullText: string; pages: PageDa
   const arrayBuffer = await file.arrayBuffer()
   const pdf         = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
 
-  // ── Pass 1: extract text from ALL pages in parallel ──────────────────────
   const textResults = await Promise.all(
     Array.from({ length: pdf.numPages }, (_, i) => extractPageText(pdf, i + 1))
   )
 
   const fullText = textResults.map(r => r.text).join('')
 
-  // ── Pass 2: fetch operatorList ONLY for nutrition pages, also in parallel ─
-  // Patch nutrition trigger before checking so split text items are caught
   const patchedTexts = textResults.map(r => {
     let text = r.text
-    if (!text.includes('NUTRITIONAL REPORT') && text.includes('NUTRITIONAL') && text.includes('REPORT')) {
+    if (!text.includes('NUTRITIONAL REPORT') &&
+        text.includes('NUTRITIONAL') && text.includes('REPORT')) {
       text = text.replace('NUTRITIONAL', 'NUTRITIONAL REPORT')
     }
     return text
@@ -165,9 +209,8 @@ async function getPDFData(file: File): Promise<{ fullText: string; pages: PageDa
     .filter(p => p.isNutrition)
     .map(p => p.i)
 
-  console.log(`[getPDFData] ${pdf.numPages} pages total, ${nutritionPageIndices.length} nutrition pages`)
+  console.log(`[getPDFData] ${pdf.numPages} pages, ${nutritionPageIndices.length} nutrition pages`)
 
-  // Fetch operator lists for nutrition pages only — all in parallel
   const operatorListMap = new Map<number, any>()
   await Promise.all(
     nutritionPageIndices.map(async (idx) => {
@@ -176,7 +219,6 @@ async function getPDFData(file: File): Promise<{ fullText: string; pages: PageDa
     })
   )
 
-  // ── Assemble final pages array ────────────────────────────────────────────
   const pages: PageData[] = textResults.map((r, i) => ({
     text:         patchedTexts[i],
     words:        r.words,
@@ -198,18 +240,12 @@ function buildPatientForm(data: ReportData | null): ExtractedPatient {
 }
 
 export async function extractFromPDF(file: File): Promise<PDFExtractResult> {
-  // ── PDF parsing + API call run concurrently ───────────────────────────────
-  // getPDFData is now fast (parallel pages), so we start it and the API call together
-  const pdfDataPromise = getPDFData(file)
+  const { fullText, pages } = await getPDFData(file)
 
-  // Wait for PDF data first (needed to build the API body)
-  const { fullText, pages } = await pdfDataPromise
-
+  // Dynamic species extraction — no KNOWN_GENERA list
   const speciesFromText = extractSpeciesFromText(fullText)
 
-  // ── Nutrition extraction + API call run concurrently ─────────────────────
   const [nutritionData, reportDataRaw] = await Promise.all([
-    // Nutrition extraction (client-side, uses operatorList)
     (async () => {
       try {
         const { extractNutritionFromPages } = await import('./extractNutrition')
@@ -222,7 +258,6 @@ export async function extractFromPDF(file: File): Promise<PDFExtractResult> {
       }
     })(),
 
-    // API call for full report parsing (runs at same time as nutrition)
     (async () => {
       try {
         const pagesForAPI = pages.map(({ text, words }) => ({ text, words }))
@@ -240,22 +275,18 @@ export async function extractFromPDF(file: File): Promise<PDFExtractResult> {
     })(),
   ])
 
-  // ── Merge results ─────────────────────────────────────────────────────────
   let reportData: ReportData | null = reportDataRaw
 
   if (reportData) {
-    // Merge species
     if (reportData.species_list?.length > 0) {
       reportData.species_list = Array.from(new Set([...speciesFromText, ...reportData.species_list]))
     } else {
       reportData.species_list = speciesFromText
     }
-    // Attach nutrition
     if (nutritionData && Object.keys(nutritionData).length > 0) {
       ;(reportData as any).nutrition = nutritionData
     }
   } else {
-    // Fallback if API failed
     reportData = {
       patient: null, rych_index: null, scfa: {}, vitamins: {},
       neurotransmitters: {}, macronutrients: {}, gut_function: {},
@@ -263,7 +294,18 @@ export async function extractFromPDF(file: File): Promise<PDFExtractResult> {
       disease_risk: {}, diversity: {}, kingdom: {},
       antibiotic_recovery: null,
       probiotics: { absent: [], low_optimal: [], high_optimal: [], optimal: [], atypical_high: [] },
-      probiotic_recommendations: [], pathogens_detected: [],
+      probiotic_recommendations: [],
+      pathogens_detected: [],
+      pathogen_category_tag: null,
+      pathogens_data: [],
+      antibiotic_resistance: {},
+      antibiotic_resistance_tag: null,
+      antibiotic_recovery_tag: null,
+      foundation_microbiota: [],
+      dietary_rx: null,
+      dietary_rx_method: null,
+      dietary_rx_parsed_at: null,
+      nutrition: null,
       species_list: speciesFromText,
     }
   }
