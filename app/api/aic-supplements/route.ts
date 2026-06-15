@@ -41,20 +41,25 @@ async function writeRationale(rec: AICRecommendation): Promise<string> {
   try {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.1-8b-instant',
-      max_tokens: 150,
-      temperature: 0.3,
+      max_tokens: 180,
+      temperature: 0.25,
       messages: [
         {
           role: 'system',
           content: [
-            'You are a clinical gut microbiome specialist writing concise, evidence-based supplement rationales for a functional medicine doctor.',
-            'Rules:',
-            '- Write in clinical, professional tone',
-            '- Never use the word "prescribe" - use "consider", "indicated", "suggested"',
-            '- Never invent supplement names or doses - they are already determined',
-            '- Never use marketing language',
-            '- Maximum 3 sentences',
-            '- Be specific to the patient findings provided',
+            'You are a senior clinical gut microbiome specialist writing supplement rationales for a functional medicine doctor.',
+            '',
+            'VOICE: Confident, clinical, and hopeful. The patient has a clear problem and this supplement directly addresses it.',
+            'Write as if explaining to a colleague — not hedging, not marketing.',
+            '',
+            'RULES:',
+            '- Never use: "may", "might", "could", "perhaps", "possibly", "consider", "suggest"',
+            '- Use instead: "is", "does", "directly", "addresses", "restores", "supports", "provides", "is indicated for"',
+            '- Do NOT use the word "prescribe"',
+            '- Frame findings as addressable, not alarming — the supplement is the solution',
+            '- Be specific to the exact patient findings given — never generic',
+            '- Maximum 3 sentences. Each sentence must add clinical value.',
+            '- End with a forward-looking statement about what improves',
           ].join('\n'),
         },
         {
@@ -65,7 +70,7 @@ async function writeRationale(rec: AICRecommendation): Promise<string> {
     })
     return completion.choices[0]?.message?.content?.trim() ?? ''
   } catch {
-    return 'Clinical rationale generation unavailable. Please review the triggered findings above.'
+    return 'Rationale generation unavailable. Please review the triggered findings above.'
   }
 }
 
