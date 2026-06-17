@@ -377,105 +377,46 @@ function parseProbioticSummary(pages: { text: string; words: any[] }[]): {
   absent: string[]; low_optimal: string[]; high_optimal: string[]
   optimal: string[]; atypical_high: string[]
 } | null {
-  // Words that are column headers / labels, NOT probiotic species names
-  const NON_PROBIOTIC = new Set([
-    'Pill','Follow','Avoid','Continue','Low','High','Optimal','Atypical',
-    'Absent','Supplementation','Needed','Recommendations','Handbook',
-    'Page','Note','Begin','Start','Stop','Take','Use','Add','Try','Help',
-    'Probiotic','Summary','BugSpeaks','Identifies','These','The'
-  ])
-
   for (const page of pages) {
     if (!page.text.includes('Probiotic Supplementation Summary')) continue
-
-    const result = {
-      absent: [] as string[], low_optimal: [] as string[],
-      high_optimal: [] as string[], optimal: [] as string[], atypical_high: [] as string[]
-    }
-
-    // -- Step 1: Detect column x-positions dynamically from header words ------
-    // BugSpeaks has 3 columns: Absent (left) | Low/High Optimal (middle) | Optimal/Atypical (right)
-    // We find the x0 of the "Absent" and "Optimal" header words to set boundaries.
-    let absentX = -1, optimalX = -1
-
-    for (const w of page.words) {
-      if (w.text === 'Absent' && absentX === -1) absentX = w.x0
-      // "Optimal" header for the RIGHT column - appears further right than "Low Optimal" middle header
-      if (w.text === 'Optimal' && optimalX === -1 && (absentX === -1 || w.x0 > absentX + 50)) {
-        // Check it's the main Optimal header, not "Low Optimal"
-        // It appears to the right of the middle column
-        optimalX = w.x0
-      }
-    }
-
-    // If we found both headers, compute dynamic thresholds
-    // Otherwise fall back to BugSpeaks defaults
-    let boundary1 = 200  // absent vs middle
-    let boundary2 = 405  // middle vs right
-
-    if (absentX !== -1 && optimalX !== -1 && optimalX > absentX + 100) {
-      // Midpoint between absent column and optimal column = middle boundary
-      const midpointX = (absentX + optimalX) / 2
-      boundary1 = absentX + (midpointX - absentX) * 0.6   // 60% of way to midpoint
-      boundary2 = midpointX + (optimalX - midpointX) * 0.4 // 40% past midpoint
-      console.log('[Probiotics] Dynamic boundaries:', boundary1.toFixed(0), boundary2.toFixed(0),
-        '(absentX:', absentX, 'optimalX:', optimalX + ')')
-    } else {
-      console.log('[Probiotics] Using default boundaries 200/405 (absentX:', absentX, 'optimalX:', optimalX + ')')
-    }
-
-    // -- Step 2: Group words by y and extract probiotic names -----------------
+    const result = { absent: [] as string[], low_optimal: [] as string[], high_optimal: [] as string[], optimal: [] as string[], atypical_high: [] as string[] }
     const lineMap = new Map<number, any[]>()
     for (const w of page.words) {
       const y = Math.round(w.top / 4) * 4
       if (!lineMap.has(y)) lineMap.set(y, [])
       lineMap.get(y)!.push(w)
     }
-
     let col2Category: 'low_optimal' | 'high_optimal' | 'atypical_high' = 'low_optimal'
     const sortedYs = Array.from(lineMap.keys()).sort((a, b) => a - b)
-
     for (const y of sortedYs) {
-      const lw = lineMap.get(y)!.sort((a: any, b: any) => a.x0 - b.x0)
+      const lw = lineMap.get(y)!.sort((a, b) => a.x0 - b.x0)
       const lineText = lw.map((w: any) => w.text).join(' ')
-
-      // Detect column-2 sub-category from header text
-      if (lineText.includes('High') && lineText.includes('Optimal')) col2Category = 'high_optimal'
+      if (lineText.includes('High') && lineText.includes('Optimal') && lw.some((w: any) => w.text === 'High' && w.x0 < 400)) col2Category = 'high_optimal'
       if (lineText.includes('Atypical')) col2Category = 'atypical_high'
-
       let i = 0
       while (i < lw.length) {
         const w = lw[i]; const x = w.x0; const t = w.text
-
-        if (/^[A-Z][a-z]{2,}$/.test(t) && !NON_PROBIOTIC.has(t) &&
-            i + 1 < lw.length && /^[a-z]{3,}$/.test(lw[i + 1]?.text || '')) {
+        // Skip header/label words that appear as column titles in BugSpeaks PDF
+        // These match the Capitalised+lowercase pattern but are not probiotic species
+        const NON_PROBIOTIC = new Set([
+          'Pill','Follow','Avoid','Continue','Low','High','Optimal','Atypical',
+          'Absent','Supplementation','Needed','Recommendations','Handbook',
+          'Page','Note','Begin','Start','Stop','Take','Use','Add','Try','Help'
+        ])
+        if (/^[A-Z][a-z]{2,}$/.test(t) && !NON_PROBIOTIC.has(t) && i + 1 < lw.length && /^[a-z]{3,}$/.test(lw[i + 1]?.text || '')) {
           const parts = [t]; let j = i + 1
           while (j < lw.length) {
             const nw = lw[j]
-            if (Math.abs(nw.x0 - x) < 220 && /^[a-z]{2,}$/.test(nw.text)) {
-              parts.push(nw.text); j++
-            } else break
+            if (Math.abs(nw.x0 - x) < 220 && /^[a-z]{2,}$/.test(nw.text)) { parts.push(nw.text); j++ } else break
           }
           const species = parts.join(' ')
-
-          // Assign to column using dynamic boundaries
-          if (x < boundary1) {
-            result.absent.push(species)
-          } else if (x < boundary2) {
-            if (col2Category === 'high_optimal') result.high_optimal.push(species)
-            else result.low_optimal.push(species)
-          } else {
-            if (col2Category === 'atypical_high') result.atypical_high.push(species)
-            else result.optimal.push(species)
-          }
+          if (x < 200) result.absent.push(species)
+          else if (x < 405) { if (col2Category === 'high_optimal') result.high_optimal.push(species); else result.low_optimal.push(species) }
+          else { if (col2Category === 'atypical_high') result.atypical_high.push(species); else result.optimal.push(species) }
           i = j
         } else i++
       }
     }
-
-    console.log('[Probiotics] Absent:', result.absent.length,
-      '| Low:', result.low_optimal.length, '| High:', result.high_optimal.length,
-      '| Optimal:', result.optimal.length, '| Atypical:', result.atypical_high.length)
     return result
   }
   return null
