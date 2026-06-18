@@ -29,10 +29,10 @@ const NAV_GROUPS = [
     { section: 'disease-risk',      label: 'Disease risk' },
   ]},
   { label: 'Microbiome profile', items: [
-    { section: 'diversity',   label: 'Diversity' },
-    { section: 'foundation',  label: 'Foundation' },
-    { section: 'probiotics',  label: 'Probiotics' },
-    { section: 'pathogens',   label: 'Pathogens' },
+    { section: 'diversity',         label: 'Diversity' },
+    { section: 'foundation',        label: 'Foundation' },
+    { section: 'probiotics',        label: 'Probiotics' },
+    { section: 'pathogens',         label: 'Pathogens' },
   ]},
   { label: 'Production potential', items: [
     { section: 'scfa',              label: 'SCFA' },
@@ -47,6 +47,7 @@ const NAV_GROUPS = [
   ]},
   { label: 'Resistance', items: [
     { section: 'antibiotic', label: 'Antibiotic' },
+    { section: 'abundant-species',  label: 'Abundant Species' },
   ]}, 
   { label: 'Clinical tools', items: [
   { section: 'aic-supplements',  label: 'AIC Supplement Plan' },

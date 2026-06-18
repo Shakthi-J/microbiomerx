@@ -9,6 +9,27 @@ export async function signIn(email: string, password: string) {
   return data
 }
 
+export async function signUp(
+  email: string,
+  password: string,
+  fullName: string,
+  clinicName: string
+) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        clinic_name: clinicName,
+      },
+      emailRedirectTo: `${window.location.origin}/login`,
+    },
+  })
+  if (error) throw error
+  return data
+}
+
 export async function signOut() {
   await supabase.auth.signOut()
   window.location.href = '/login'

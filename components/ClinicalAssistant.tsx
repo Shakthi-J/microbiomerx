@@ -1,7 +1,5 @@
 'use client'
 // components/ClinicalAssistant.tsx
-// Fixed right sidebar. Receives PDF text selections from PdfViewerPanel
-// via PdfPanelContext and auto-populates the input.
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
@@ -9,8 +7,9 @@ import { usePageContext }  from '@/components/PageContext'
 import { useAssistant }    from '@/lib/AssistantContext'
 import { usePdfPanel, PDF_PANEL_W, ASSISTANT_W } from '@/lib/PdfPanelContext'
 
+// ─── Markdown renderer ────────────────────────────────────────────────────────
+
 function MessageContent({ content }: { content: string }) {
-  // Convert basic markdown to styled spans
   const parts = content.split(/(\*\*[^*]+\*\*)/g)
   return (
     <span className="whitespace-pre-wrap">
@@ -24,7 +23,11 @@ function MessageContent({ content }: { content: string }) {
   )
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type Message = { role: 'user' | 'assistant'; content: string }
+
+// ─── Suggestions ─────────────────────────────────────────────────────────────
 
 const SECTION_SUGGESTIONS: Record<string, string[]> = {
   'rych-index':        ['What does this Rych Index score mean?', 'Is this score concerning?', 'What improves Rych Index?'],
@@ -50,23 +53,66 @@ function getSuggestions(section?: string) {
   return SECTION_SUGGESTIONS[section] ?? SECTION_SUGGESTIONS.default
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function ClinicalAssistant() {
-  const pathname  = usePathname()
-  const pageCtx   = usePageContext()
-  const { isOpen, toggle, close } = useAssistant()
+  const pathname = usePathname()
+  const pageCtx  = usePageContext()
+  const { isOpen, toggle, close }                         = useAssistant()
   const { isPdfOpen, pendingSelection, setPendingSelection } = usePdfPanel()
 
+  // ── All state hooks first ─────────────────────────────────────────────
   const [input,    setInput]    = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [loading,  setLoading]  = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
 
-  if (pathname === '/login') return null
-
+  // ── Derived values (no hooks, safe to compute anywhere) ──────────────
   const reportIdMatch = pathname.match(/\/report\/([^/]+)/)
-  const reportId = pageCtx?.reportId ?? reportIdMatch?.[1] ?? null
+  const reportId      = pageCtx?.reportId ?? reportIdMatch?.[1] ?? null
 
+  // ── sendMessage (defined before useEffect that calls it) ─────────────
+  const sendMessage = useCallback(async (content: string) => {
+    if (!content.trim() || loading) return
+    setInput('')
+
+    const userMsg: Message = { role: 'user', content }
+    const next = [...messages, userMsg]
+    setMessages(next)
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/rag-query', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages:       next,
+          report_id:      reportId,
+          active_section: pageCtx?.section ?? pathname.split('/').pop() ?? '',
+          page_context:   pageCtx
+            ? { section: pageCtx.section, label: pageCtx.label, data: pageCtx.data, patientName: pageCtx.patientName }
+            : null,
+        }),
+      })
+      const json = await res.json()
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: json.reply ?? json.error ?? 'No response' },
+      ])
+    } catch {
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'Connection error. Please try again.' },
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }, [messages, loading, reportId, pageCtx, pathname])
+
+  const send = useCallback(() => sendMessage(input), [input, sendMessage])
+
+  // ── All useEffects (must be unconditional, before any return) ─────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -79,54 +125,23 @@ export default function ClinicalAssistant() {
     setMessages([])
   }, [pageCtx?.section])
 
-  // ── Receive selected PDF text and auto-send as a question ────────────
   useEffect(() => {
     if (!pendingSelection) return
     const question = `From the PDF report: "${pendingSelection}"\n\nWhat does this mean clinically?`
     setPendingSelection(null)
-    // Auto-send the selection as a message
     sendMessage(question)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSelection])
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || loading) return
-    setInput('')
-
-    const userMsg: Message = { role: 'user', content }
-    const next = [...messages, userMsg]
-    setMessages(next)
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/rag-query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages:       next,
-          report_id:      reportId,
-          active_section: pageCtx?.section ?? pathname.split('/').pop() ?? '',
-          page_context:   pageCtx
-            ? { section: pageCtx.section, label: pageCtx.label, data: pageCtx.data, patientName: pageCtx.patientName }
-            : null,
-        }),
-      })
-      const json = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: json.reply ?? json.error ?? 'No response' }])
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please try again.' }])
-    } finally {
-      setLoading(false)
-    }
-  }, [messages, loading, reportId, pageCtx, pathname])
-
-  const send = useCallback(() => sendMessage(input), [input, sendMessage])
+  // ── Conditional return AFTER all hooks ────────────────────────────────
+  if (pathname === '/login') return null
 
   const suggestions = getSuggestions(pageCtx?.section)
 
+  // ── Render ────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Pull tab ────────────────────────────────────────────────────── */}
+      {/* ── Pull tab ──────────────────────────────────────────────────── */}
       <button
         onClick={toggle}
         aria-label="Toggle Clinical Assistant"
@@ -140,21 +155,25 @@ export default function ClinicalAssistant() {
         <div className={`bg-[#538A22] hover:bg-[#3D6B16] text-white px-1.5 py-6 shadow-lg flex flex-col items-center gap-2 transition-colors ${
           isPdfOpen && !isOpen ? 'rounded-r-xl' : 'rounded-l-xl'
         }`}>
-          <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${
-            !isOpen && !isPdfOpen ? 'rotate-180' : 'rotate-0'
-          }`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              !isOpen && !isPdfOpen ? 'rotate-180' : 'rotate-0'
+            }`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-          <span className="text-[10px] font-mono font-semibold tracking-widest uppercase"
-            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.15em' }}>
+          <span
+            className="text-[10px] font-mono font-semibold tracking-widest uppercase"
+            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.15em' }}
+          >
             Assistant
           </span>
           <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
         </div>
       </button>
 
-      {/* ── Sidebar panel ───────────────────────────────────────────────── */}
+      {/* ── Sidebar panel ─────────────────────────────────────────────── */}
       <div
         style={{ width: ASSISTANT_W }}
         className={`fixed top-0 right-0 h-screen z-40 bg-white border-l border-[#E2F3D0] shadow-2xl flex flex-col transition-transform duration-[250ms] ease-in-out ${
@@ -166,8 +185,12 @@ export default function ClinicalAssistant() {
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-mono text-[#538A22] font-semibold uppercase tracking-widest">Clinical Assistant</span>
-                <span className="text-xs font-mono bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">Doctor only</span>
+                <span className="text-xs font-mono text-[#538A22] font-semibold uppercase tracking-widest">
+                  Clinical Assistant
+                </span>
+                <span className="text-xs font-mono bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
+                  Doctor only
+                </span>
               </div>
               <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                 {pageCtx ? (
@@ -190,11 +213,18 @@ export default function ClinicalAssistant() {
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
               {messages.length > 0 && (
-                <button onClick={() => setMessages([])} className="text-xs font-mono text-gray-400 hover:text-red-500 transition">
+                <button
+                  onClick={() => setMessages([])}
+                  className="text-xs font-mono text-gray-400 hover:text-red-500 transition"
+                >
                   Clear
                 </button>
               )}
-              <button onClick={close} className="text-gray-400 hover:text-gray-700 transition" aria-label="Close">
+              <button
+                onClick={close}
+                className="text-gray-400 hover:text-gray-700 transition"
+                aria-label="Close"
+              >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -208,30 +238,31 @@ export default function ClinicalAssistant() {
           {messages.length === 0 && (
             <div className="space-y-3 pt-2">
               <p className="text-xs text-gray-400 font-mono text-center">
-                {pageCtx ? `Ask anything about the ${pageCtx.label} section` : 'Ask any clinical question'}
+                {pageCtx
+                  ? `Ask anything about the ${pageCtx.label} section`
+                  : 'Ask any clinical question'}
               </p>
-              {/* Suggestions */}
               <div className="space-y-2">
                 {suggestions.map((s, i) => (
-                  <button key={i} onClick={() => sendMessage(s)}
-                    className="w-full text-left text-xs text-[#1A3207] bg-[#F2F9EC] border border-[#C8E9A8] rounded-lg px-3 py-2.5 hover:bg-[#E2F3D0] transition font-mono leading-relaxed">
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(s)}
+                    className="w-full text-left text-xs text-[#1A3207] bg-[#F2F9EC] border border-[#C8E9A8] rounded-lg px-3 py-2.5 hover:bg-[#E2F3D0] transition font-mono leading-relaxed"
+                  >
                     {s}
                   </button>
                 ))}
               </div>
-              {/* PDF hint when PDF is not open */}
-              
             </div>
           )}
 
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
                 m.role === 'user'
                   ? 'bg-[#538A22] text-white rounded-br-sm'
                   : 'bg-[#F2F9EC] text-gray-800 border border-[#E2F3D0] rounded-bl-sm'
               }`}>
-                {/* PDF source badge on auto-sent PDF selections */}
                 {m.role === 'user' && m.content.startsWith('From the PDF report:') && (
                   <div className="text-[10px] font-mono bg-white/20 rounded px-1.5 py-0.5 mb-1.5 inline-block">
                     📄 From PDF
@@ -246,14 +277,18 @@ export default function ClinicalAssistant() {
             <div className="flex justify-start">
               <div className="bg-[#F2F9EC] border border-[#E2F3D0] rounded-2xl rounded-bl-sm px-4 py-3">
                 <div className="flex gap-1 items-center h-4">
-                  {[0,1,2].map(i => (
-                    <div key={i} className="w-1.5 h-1.5 bg-[#538A22] rounded-full animate-bounce"
-                      style={{ animationDelay: `${i * 0.15}s` }} />
+                  {[0, 1, 2].map(i => (
+                    <div
+                      key={i}
+                      className="w-1.5 h-1.5 bg-[#538A22] rounded-full animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
                   ))}
                 </div>
               </div>
             </div>
           )}
+
           <div ref={bottomRef} />
         </div>
 
@@ -272,7 +307,9 @@ export default function ClinicalAssistant() {
               onClick={send}
               disabled={!input.trim() || loading}
               className="px-4 py-2.5 bg-[#538A22] hover:bg-[#3D6B16] disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-sm font-medium transition-colors"
-            >→</button>
+            >
+              →
+            </button>
           </div>
           <p className="text-[10px] text-gray-400 font-mono text-center mt-2">
             For physician use only · Not a prescription

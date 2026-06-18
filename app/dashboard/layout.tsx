@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import ClinicalAssistant from '@/components/ClinicalAssistant'
 import UploadModal from '@/components/UploadModal'
+import Link from 'next/link'
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,34 +171,48 @@ function DashboardContent({
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-[#538A22] flex items-center
             justify-center text-base leading-none">🦠</div>
-          <span className="text-[13px] font-semibold text-[#538A22] tracking-wide uppercase">
+          <span className="text-[20px] font-semibold text-[#538A22] tracking-wide uppercase">
             MicrobiomeRx
           </span>
           <span className="text-gray-300 mx-1 select-none">·</span>
         </div>
 
-        {/* Right — email + sign out */}
-        <div className="flex items-center gap-3">
-          {userEmail && (
-            <span className="text-[11px] text-gray-400 font-mono hidden sm:block">
-              {userEmail}
-            </span>
-          )}
-          <button
-            onClick={onSignOut}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium
-              text-gray-500 bg-white border border-gray-200 rounded-lg
-              hover:border-red-200 hover:text-red-600 hover:bg-red-50
-              transition-all shadow-sm"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16">
-              <path d="M10 2h3a1 1 0 011 1v10a1 1 0 01-1 1h-3M6.5 11L10 8l-3.5-3M10 8H2"
-                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
-                strokeLinejoin="round"/>
-            </svg>
-            Sign out
-          </button>
-        </div>
+        {/* Right — email + sign out + feedback */}
+<div className="flex flex-col items-end gap-2">
+  <div className="flex items-center gap-3">
+    {userEmail && (
+      <span className="text-[11px] text-gray-400 font-mono hidden sm:block">
+        {userEmail}
+      </span>
+    )}
+    <button
+      onClick={onSignOut}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium
+        text-gray-500 bg-white border border-gray-200 rounded-lg
+        hover:border-red-200 hover:text-red-600 hover:bg-red-50
+        transition-all shadow-sm"
+    >
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16">
+        <path d="M10 2h3a1 1 0 011 1v10a1 1 0 01-1 1h-3M6.5 11L10 8l-3.5-3M10 8H2"
+          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+          strokeLinejoin="round"/>
+      </svg>
+      Sign out
+    </button>
+  </div>
+
+  <Link
+    href="/feedback"
+    className="flex items-center gap-1.5 text-[10px] font-mono text-gray-400
+      hover:text-[#538A22] transition-colors"
+  >
+    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M7 8h10M7 12h6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+    </svg>
+    Suggest an improvement
+  </Link>
+</div>
       </header>
 
       {/* ── Scrollable body ── */}
@@ -212,6 +228,8 @@ function DashboardContent({
               {reports.length} report{reports.length !== 1 ? 's' : ''} · gut microbiome analysis
             </p>
           </div>
+
+          
 
           {/* Upload button */}
           <>
@@ -242,6 +260,7 @@ function DashboardContent({
           </>
         </div>
 
+       
         {/* Stat cards */}
         <div className="grid grid-cols-4 gap-4 mb-7">
           {[
@@ -272,6 +291,8 @@ function DashboardContent({
             </div>
           ))}
         </div>
+        
+        
 
         {/* Table card */}
         <div className="bg-white border border-[#E2F3D0] rounded-2xl overflow-hidden">

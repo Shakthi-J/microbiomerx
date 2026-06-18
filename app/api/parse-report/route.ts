@@ -8,6 +8,8 @@ import {
 } from '@/lib/extractDietaryRx'
 import { extractNutritionFromPages } from '@/lib/extractNutrition'
 import { extractFoundationMicrobiota } from '@/lib/ExtractFoundationmicrobiota'
+import { extractAbundantSpecies } from '@/lib/extractAbundantSpecies'
+
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 
@@ -446,6 +448,28 @@ async function parseDietaryRx(pages: Array<{ text: string; words: any[]; operato
 export async function POST(req: NextRequest) {
   try {
     const { text, pages } = await req.json()
+    // TEMPORARY DEBUG — remove after capturing output
+if (pages && Array.isArray(pages)) {
+  const virusPage = pages.find((p: any) => p.text?.includes('Viruses'))
+  if (virusPage) {
+    console.log('=== VIRUSES PAGE WORDS ===')
+    console.log(JSON.stringify(
+      virusPage.words.map((w: any) => ({ text: w.text, x0: w.x0, top: w.top })),
+      null,
+      2
+    ))
+    console.log('=== END VIRUSES PAGE WORDS ===')
+  }
+}
+if (pages && Array.isArray(pages)) {
+  const virusPage = pages.find((p: any) => p.text?.includes('Viruses'))
+  if (virusPage) {
+    console.log('=== VIRUSES PAGE WORDS ===')
+    console.log(JSON.stringify(virusPage.words.map((w: any) => ({ text: w.text, x0: w.x0, top: w.top })), null, 2))
+    console.log('=== END VIRUSES PAGE WORDS ===')
+  }
+}
+
     if (!text) return NextResponse.json({ error: 'No text' }, { status: 400 })
 
     const scoresData = parseScores(text)
@@ -467,6 +491,7 @@ export async function POST(req: NextRequest) {
     } catch { speciesList = [] }
 
     const foundation_microbiota   = extractFoundationMicrobiota(text)
+    const abundant_species        = extractAbundantSpecies(text, pages ?? [])
     const pathogens_data          = extractPathogenData(text)
     const pathogensDetected       = pathogens_data.map(p => p.name)
     const pathogenCategoryTag     = extractPathogenCategoryTag(text)
@@ -492,6 +517,7 @@ export async function POST(req: NextRequest) {
       dietary_rx_method:         dietaryResult?.method ?? null,
       nutrition,
       foundation_microbiota,
+      abundant_species,
     }
 
     return NextResponse.json({ data: finalData })
