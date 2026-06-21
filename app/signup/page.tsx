@@ -96,7 +96,23 @@ export default function SignupPage() {
               />
             </div>
 
-          
+            <div>
+              <label className="block text-xs font-mono text-gray-400
+                uppercase tracking-widest mb-1.5">
+                Clinic name
+              </label>
+              <input
+                type="text"
+                value={clinicName}
+                onChange={(e) => setClinicName(e.target.value)}
+                placeholder="Clinic Living Plus"
+                required
+                className="w-full bg-background border border-gray-200 rounded-lg
+                  px-3 py-2.5 text-sm text-gray-900 outline-none
+                  focus:border-[#538A22] focus:ring-2 focus:ring-green-50
+                  transition"
+              />
+            </div>
 
             <div>
               <label className="block text-xs font-mono text-gray-400
