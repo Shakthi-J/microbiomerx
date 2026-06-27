@@ -82,7 +82,6 @@ function freq(dose:string,timing:string):string {
   return ''
 }
 
-// ── Shared footer row content ──
 function FtrRow() {
   const fi: React.CSSProperties = {display:'flex',alignItems:'center',gap:5}
   return (
@@ -208,7 +207,6 @@ export default function PrescriptionPrintPage() {
         *{margin:0;padding:0;box-sizing:border-box;}
         body{font-family:Arial,sans-serif;background:#e8e8e8;color:#1a1a1a;}
 
-        /* Action bar */
         .ab{position:fixed;top:0;left:0;right:0;background:#1A3207;padding:10px 24px;
           display:flex;justify-content:space-between;align-items:center;z-index:500;}
         .ab p{font-size:13px;color:#A8D878;}
@@ -216,34 +214,25 @@ export default function PrescriptionPrintPage() {
           font-size:13px;font-weight:bold;cursor:pointer;}
         .wn{font-size:11px;color:#FCD34D;display:flex;align-items:center;gap:6px;}
 
-        /* ══════════════════════════════════════════════════
-           THE KEY: <table> with <thead> and <tfoot>
-           Browser engine GUARANTEES content stays between them.
-           Screen: everything rendered as block (normal layout).
-           Print:  table layout enforces strict content area.
-        ══════════════════════════════════════════════════ */
+        /* Screen: table behaves like block */
+        table.ptbl         {display:block;width:100%;}
+        table.ptbl thead   {display:none;}
+        table.ptbl tfoot   {display:none;}
+        table.ptbl tbody   {display:block;}
+        table.ptbl tr      {display:block;}
+        table.ptbl td      {display:block;}
 
-        /* SCREEN overrides — make table behave like normal divs */
-        table.ptbl          { display:block; width:100%; }
-        table.ptbl thead    { display:none; }   /* hidden on screen — screen-lh replaces it */
-        table.ptbl tfoot    { display:none; }   /* hidden on screen — sftr replaces it */
-        table.ptbl tbody    { display:block; }
-        table.ptbl tr       { display:block; }
-        table.ptbl td       { display:block; }
+        /* Fixed footer — hidden on screen */
+        .pftr{display:none;}
 
-        /* Screen page card */
         .page{background:white;max-width:794px;width:794px;margin:68px auto 20px;
           padding:36px 52px 32px;box-shadow:0 4px 24px rgba(0,0,0,.10);}
-
-        /* Screen letterhead */
         .slh{display:flex;align-items:center;justify-content:space-between;
           margin-bottom:24px;padding-bottom:12px;border-bottom:2px solid #538A22;}
         .slhl{display:flex;align-items:center;gap:12px;}
         .cn{font-size:18px;font-weight:bold;color:#1A3207;}
         .ct{font-size:11px;color:#538A22;font-style:italic;}
         .lr{text-align:right;font-size:10px;color:#888;line-height:1.6;}
-
-        /* Content */
         .pn{font-size:17px;font-weight:bold;text-align:center;margin-bottom:6px;}
         .pd{text-align:right;font-size:12px;color:#333;margin-bottom:14px;}
         .fr{display:flex;gap:16px;font-size:12px;margin-bottom:12px;}
@@ -255,8 +244,6 @@ export default function PrescriptionPrintPage() {
         .nr{display:flex;gap:16px;margin-bottom:6px;}
         .nl{flex-shrink:0;width:160px;color:#555;font-weight:bold;}
         .nc{flex:1;color:#333;line-height:1.6;}
-
-        /* Rx */
         .rxh{font-size:36px;font-weight:bold;color:#1A3207;margin:4px 0 10px;}
         .rxch{display:grid;grid-template-columns:36px 1fr 110px 110px;
           border-bottom:2px solid #1A3207;border-top:1px solid #1A3207;padding:7px 0;}
@@ -266,8 +253,6 @@ export default function PrescriptionPrintPage() {
         .rxpl{height:1px;flex:1;background:#E2F3D0;}
         .rxpb{font-size:10px;font-weight:bold;letter-spacing:.8px;text-transform:uppercase;
           padding:2px 10px;border-radius:10px;white-space:nowrap;}
-
-        /* Item wrapper — block div, most reliable for break avoidance */
         .rxi{display:block;border-bottom:1px solid #eee;
           page-break-inside:avoid;break-inside:avoid;}
         .rxir{display:flex;padding:12px 0 10px;align-items:flex-start;}
@@ -282,8 +267,6 @@ export default function PrescriptionPrintPage() {
         .msi{font-size:11px;color:#333;margin-bottom:4px;padding-left:8px;border-left:2px solid #C8E9A8;}
         .mno{font-size:10px;color:#538A22;margin-top:3px;font-style:italic;}
         .mco{font-size:10px;color:#B91C1C;margin-top:3px;}
-
-        /* Dietary */
         .ds{margin-top:16px;padding-top:12px;border-top:1px solid #eee;}
         .dh{font-size:13px;font-weight:bold;color:#1A3207;margin-bottom:8px;}
         .di{font-size:11px;color:#333;margin-bottom:7px;padding-left:14px;position:relative;
@@ -291,8 +274,6 @@ export default function PrescriptionPrintPage() {
         .di::before{content:'•';position:absolute;left:0;color:#538A22;}
         .dn{font-weight:bold;color:#1A3207;}
         .dr{font-size:10px;color:#777;font-style:italic;margin-top:2px;}
-
-        /* Signature */
         .ss{margin-top:32px;display:flex;justify-content:flex-end;
           page-break-inside:avoid;break-inside:avoid;}
         .sb{text-align:right;min-width:220px;}
@@ -305,32 +286,22 @@ export default function PrescriptionPrintPage() {
         .sta{display:inline-block;border:2px solid #538A22;border-radius:6px;padding:5px 14px;margin-bottom:10px;}
         .stt{font-size:11px;font-weight:bold;color:#538A22;letter-spacing:1px;text-transform:uppercase;}
         .std{font-size:10px;color:#538A22;margin-top:2px;}
-
-        /* Screen footer */
         .sftr{border-top:1px solid #C8E9A8;padding-top:10px;margin-top:28px;}
 
-        /* ══════════════════════════════════════════════════
-           PRINT — activate real table layout
-           thead → header-group  = repeats at TOP every page
-           tfoot → footer-group  = repeats at BOTTOM every page
-           tbody → row-group     = content strictly between them
-           THE BROWSER ENGINE ENFORCES THE BOUNDARY.
-        ══════════════════════════════════════════════════ */
         @media print {
           body{background:white;}
           .ab,button[aria-label="Toggle Clinical Assistant"],
           div[style*="width:400px"],div[style*="width: 400px"]{display:none!important;}
 
-          /* Activate table layout */
-          table.ptbl       { display:table!important; width:100%; border-collapse:collapse; }
-          table.ptbl tr    { display:table-row!important; }
-          table.ptbl thead { display:table-header-group!important; }
-          table.ptbl tfoot { display:table-footer-group!important; }
-          table.ptbl tbody { display:table-row-group!important; }
-          table.ptbl td    { display:table-cell!important; }
+          /* thead: logo repeats at TOP of every page */
+          table.ptbl       {display:table!important;width:100%;border-collapse:collapse;}
+          table.ptbl tr    {display:table-row!important;}
+          table.ptbl thead {display:table-header-group!important;}
+          table.ptbl tfoot {display:none!important;}
+          table.ptbl tbody {display:table-row-group!important;}
+          table.ptbl td    {display:table-cell!important;}
 
-          /* Header cell — appears at top of EVERY page */
-          thead td {
+          thead td{
             padding:10px 52px 8px;
             border-bottom:2px solid #538A22;
             background:white;
@@ -341,28 +312,27 @@ export default function PrescriptionPrintPage() {
           .thead-htag{font-size:10px;color:#538A22;font-style:italic;}
           .thead-right{text-align:right;font-size:9.5px;color:#888;line-height:1.7;}
 
-          /* Footer cell — appears at bottom of EVERY page */
-          tfoot td {
-            padding:8px 52px;
+          tbody td{padding:20px 52px 24px;vertical-align:top;}
+
+          /* pftr: fixed footer pinned to PHYSICAL BOTTOM of every page */
+          .pftr{
+            display:flex!important;
+            position:fixed;bottom:0;left:0;right:0;
+            height:46px;background:white;
             border-top:1px solid #C8E9A8;
-            background:white;
+            padding:8px 52px;
+            align-items:center;justify-content:space-between;
+            font-size:9.5px;color:#555;
+            z-index:200;
           }
 
-          /* Body cell — STRICTLY bounded between header and footer */
-          tbody td {
-            padding:20px 52px 24px;
-            vertical-align:top;
-          }
+          /* @page bottom margin = pftr height so content never slides under it */
+          @page{margin:0 0 54px 0;size:A4;}
 
-          /* Hide screen elements that are replaced by thead/tfoot */
-          .slh,.sftr{display:none!important;}
-
-          /* Reset page — no margin, table handles everything */
-          .page{margin:0;padding:0;box-shadow:none;background:transparent;max-width:100%;width:100%;}
-
-          .fc{line-height:1.9;}
-          @page{margin:0;size:A4;}
           body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+          .page{margin:0;padding:0;box-shadow:none;background:transparent;max-width:100%;width:100%;}
+          .slh,.sftr{display:none!important;}
+          .fc{line-height:1.9;}
         }
       `}</style>
 
@@ -379,15 +349,9 @@ export default function PrescriptionPrintPage() {
         </div>
       </div>
 
-      {/* ════════════════════════════════════════════════
-          THE TABLE — enforces strict content boundary
-          thead: logo header   → top of every page
-          tfoot: contact info  → bottom of every page
-          tbody: all content   → strictly between them
-      ════════════════════════════════════════════════ */}
+      {/* TABLE: thead = repeating logo header, tbody = all content */}
       <table className="ptbl">
 
-        {/* ── HEADER: repeats at TOP of every printed page ── */}
         <thead>
           <tr>
             <td>
@@ -408,24 +372,18 @@ export default function PrescriptionPrintPage() {
           </tr>
         </thead>
 
-        {/* ── FOOTER: repeats at BOTTOM of every printed page ── */}
-        <tfoot>
-          <tr>
-            <td><FtrRow/></td>
-          </tr>
-        </tfoot>
+        {/* tfoot hidden in print — pftr fixed div handles footer instead */}
+        <tfoot><tr><td></td></tr></tfoot>
 
-        {/* ── BODY: content area — browser CANNOT let this overflow into thead/tfoot ── */}
         <tbody>
           <tr>
             <td>
               <div className="page">
 
-                {/* Screen letterhead (hidden in print — thead replaces it) */}
                 <div className="slh">
                   <div className="slhl">
                     <Logo h={44}/>
-                    <div><div className="cn">CLINIC LIVING PLUS</div><div className="ct">…celebrating health!</div></div>
+                    <div><div className="cn"></div><div className="ct">…celebrating health!</div></div>
                   </div>
                   <div className="lr"><div>GUT MICROBIOME REPORT</div><div>Prescription Plan</div></div>
                 </div>
@@ -520,7 +478,6 @@ export default function PrescriptionPrintPage() {
                   </div>
                 )}
 
-                {/* Signature */}
                 <div className="ss">
                   <div className="sb">
                     {data.approved_at&&(
@@ -537,15 +494,18 @@ export default function PrescriptionPrintPage() {
                   </div>
                 </div>
 
-                {/* Screen footer (hidden in print — tfoot replaces it) */}
                 <div className="sftr"><FtrRow/></div>
 
               </div>
             </td>
           </tr>
         </tbody>
-
       </table>
+
+      {/* Fixed footer — pinned to physical bottom of EVERY printed page */}
+      <div className="pftr">
+        <FtrRow/>
+      </div>
     </>
   )
 }
