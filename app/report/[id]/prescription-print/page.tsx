@@ -359,7 +359,6 @@ export default function PrescriptionPrintPage() {
                 <div className="thead-left">
                   <Logo h={50}/>
                   <div>
-                    <div className="thead-hname"></div>
                     <div className="thead-htag">…celebrating health!</div>
                   </div>
                 </div>
