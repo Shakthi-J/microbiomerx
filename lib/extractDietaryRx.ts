@@ -454,7 +454,7 @@ export async function extractDietaryViaGroq(
   const sectionText = sliceDietarySection(text)
 
   const completion = await groq.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
+    model: 'openai/gpt-oss-20b',
     max_tokens: 4000,
     temperature: 0.1,
     messages: [

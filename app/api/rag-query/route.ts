@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
     ].filter(Boolean).join('\n\n')
 
     const response = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'openai/gpt-oss-20b',
       max_tokens: 1000,
       messages: [
         { role: 'system', content: system },

@@ -56,7 +56,7 @@ ${reportContext ? `\nPatient context:\n${reportContext}` : ''}
 ${knowledgeContext ? `\nKnowledge base:\n${knowledgeContext}` : ''}`
 
     const response = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'openai/gpt-oss-20b',
       max_tokens: 1000,
       messages: [
         { role: 'system', content: systemPrompt },

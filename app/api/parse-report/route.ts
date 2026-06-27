@@ -489,7 +489,7 @@ export async function POST(req: NextRequest) {
     let speciesList: string[] = []
     try {
       const res = await groq.chat.completions.create({
-        model: 'llama-3.1-8b-instant', max_tokens: 2000, temperature: 0,
+        model: 'openai/gpt-oss-20b', max_tokens: 2000, temperature: 0,
         messages: [
           { role: 'system', content: 'Extract ALL microbial species names from this gut microbiome report. Include bacteria, fungi, archaea. Use genus + species format. Return ONLY: { "species": ["species 1", "species 2", ...] } No duplicates.' },
           { role: 'user', content: text.slice(0, 20000) },

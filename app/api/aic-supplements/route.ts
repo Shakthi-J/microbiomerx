@@ -40,7 +40,7 @@ async function fetchAICProducts(): Promise<AICProduct[]> {
 async function writeRationale(rec: AICRecommendation): Promise<string> {
   try {
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'openai/gpt-oss-20b',
       max_tokens: 180,
       temperature: 0.25,
       messages: [
