@@ -434,22 +434,29 @@ export default function PrescriptionPrintPage() {
                             <div className="rxir">
                               <div className="rxno">{idx[item.key]}.</div>
                               <div className="rxmed">
-                                <div className="mn">{item.label}</div>
-                                {item.aicProduct&&!isMerged&&<div className="ma">{item.aicProduct}</div>}
-                                {isMerged&&subs?(
-                                  <div style={{marginTop:4}}>
-                                    {subs.map(s=>{
-                                      const sp=parseDet(s.detail); const st=sp.timing||sp.dose||''
-                                      return(
-                                        <div key={s.key} className="msi">
-                                          <span style={{fontWeight:600,color:'#1A3207'}}>{s.label}</span>
-                                          {st&&<span style={{color:'#555'}}> — {st}</span>}
-                                          {sp.dur&&<span style={{color:'#888'}}> · {sp.dur}</span>}
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                ):(subText&&<div className="ms">{subText}</div>)}
+                              {isMerged ? (
+                                <>
+                                <div style={{marginTop:2}}>
+                                  {subs!.map(s=>{
+                                    const sp=parseDet(s.detail)
+                                    const parts=[sp.dose,sp.timing,sp.dur].filter(Boolean).join(' · ')
+                                    return(
+                                      <div key={s.key} className="msi">
+                                        <span style={{fontWeight:600,color:'#1A3207'}}>{s.label}</span>
+                                        {parts&&<span style={{color:'#555'}}> — {parts}</span>}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                <div className="ma" style={{marginTop:6}}>{item.label}</div>
+                              </>
+                            ) : (
+                               <>
+                                 <div className="mn">{item.label}</div>
+                                 {item.aicProduct&&<div className="ma">{item.aicProduct}</div>}
+                                 {subText&&<div className="ms">{subText}</div>}
+                               </>
+                             )} 
                                 {item.doctorNote&&<div className="mno">📝 {item.doctorNote}</div>}
                                 {item.contraindications&&<div className="mco">⚠ {item.contraindications}</div>}
                               </div>
