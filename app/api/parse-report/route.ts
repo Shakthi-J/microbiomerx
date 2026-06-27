@@ -146,7 +146,7 @@ function parseAntibioticResistanceFromPages(
   // are matched before their base names (e.g. Cefotaxime)
   const sortedAntibiotics = [...KNOWN_ANTIBIOTICS].sort((a, b) => b.length - a.length)
 
-  // Select only actual resistance table pages — they have 8+ known antibiotics.
+  // Select only actual resistance table pages - they have 8+ known antibiotics.
   // Other sections (pathogens, notes) mention at most 1-3 antibiotic names.
   const resistancePages = pages.filter(page => {
     if (!page.words?.length) return false
@@ -195,7 +195,7 @@ function parseAntibioticResistanceFromPages(
             reconstructed += rowWords[j].text
 
             if (reconstructed.toLowerCase() === ab.toLowerCase()) {
-              // Full name matched — claim the anchor word and all used indices
+              // Full name matched - claim the anchor word and all used indices
               abWord = rowWords[i]
               for (let k = i; k <= j; k++) claimedIndices.add(k)
               break outer

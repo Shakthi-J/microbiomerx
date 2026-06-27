@@ -5,11 +5,11 @@
  *
  * TWO extraction strategies (tried in order):
  *
- *   1. OPERATOR LIST  — reads PDF paint operations to detect dot colours
+ *   1. OPERATOR LIST  - reads PDF paint operations to detect dot colours
  *      by X/Y position. Fast, accurate, no AI tokens used.
  *      Requires: { pages: PDFPageData[] } in request body.
  *
- *   2. GROQ 70b FALLBACK — used when operator list data is missing or
+ *   2. GROQ 70b FALLBACK - used when operator list data is missing or
  *      yields < 10 items (scanned PDFs, stripped operator streams).
  *      Requires: { text: string } in request body.
  *

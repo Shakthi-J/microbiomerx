@@ -5,7 +5,7 @@
  *
  * ─── Two bugs fixed in this version ────────────────────────────────────────
  *
- * BUG 1 — Page detection failure
+ * BUG 1 - Page detection failure
  *   Old code:  if (!/ABUNDANT SPECIES/.test(page.text)) continue
  *   Problem:   "ABUNDANT SPECIES" in the PDF header may have a non-breaking
  *              space, be a styled graphic, or be joined without spaces by pdfjs,
@@ -14,7 +14,7 @@
  *   Fix:       Detect pages by checking for kingdom header WORDS in the
  *              word-position data (Bacteria, Archaea, etc. are always real text).
  *
- * BUG 2 — Y-bucket too narrow for bar value labels
+ * BUG 2 - Y-bucket too narrow for bar value labels
  *   Old code:  Math.round(w.top / 6) * 6   (6pt bucket → ±3pt tolerance)
  *   Problem:   In BugSpeaks PDFs the patient-value text printed inside the
  *              bar is laid out 6–8pt above the species-name baseline.  With a
@@ -64,7 +64,7 @@ const KINGDOM_HEADERS: { label: Kingdom; pattern: RegExp }[] = [
 const PAGE_STOP = /^(?:Name:|Age:|ID:|Gender:|Sample|Report Generated|Page \d+ of|HOW TO READ)/i
 
 /**
- * BAR_AREA_X — X coordinate (PDF points) beyond which numbers are
+ * BAR_AREA_X - X coordinate (PDF points) beyond which numbers are
  * inside the bar chart area (patient values or axis labels).
  * Species names are always in the left text column (x < ~160pt).
  * The bar chart starts at approximately x=165pt.
@@ -72,7 +72,7 @@ const PAGE_STOP = /^(?:Name:|Age:|ID:|Gender:|Sample|Report Generated|Page \d+ o
 const BAR_AREA_X = 160
 
 /**
- * Y_VALUE_SEARCH — half-window (PDF points) for the patient-value
+ * Y_VALUE_SEARCH - half-window (PDF points) for the patient-value
  * proximity search.  The bar-value text is typically within ±8pt of
  * the species-name baseline.  Axis labels (bin boundaries) sit ~12pt
  * below, so 8pt tolerance keeps them separate.
@@ -118,7 +118,7 @@ export function extractAbundantSpeciesFromPages(pages: PageLike[]): AbundantSpec
     if (!page.words?.length) continue
 
     // ── Page detection via kingdom header WORDS (Bug 1 fix) ──────────────
-    // Checking page.text for "ABUNDANT SPECIES" is fragile — the heading
+    // Checking page.text for "ABUNDANT SPECIES" is fragile - the heading
     // may use non-breaking spaces, stylised rendering, or be joined without
     // spaces in the pdfjs text stream.  Kingdom words (Bacteria, Archaea …)
     // are always plain text and reliably present in the word data.
@@ -353,7 +353,7 @@ export function extractAbundantSpecies(text: string, pages?: PageLike[]): Abunda
   if (pages?.length) {
     const r = extractAbundantSpeciesFromPages(pages)
     if (r.length > 0) return r
-    console.warn('[AbundantSpecies] word-position returned 0 — falling back to text')
+    console.warn('[AbundantSpecies] word-position returned 0 - falling back to text')
   }
   return extractAbundantSpeciesFromText(text)
 }

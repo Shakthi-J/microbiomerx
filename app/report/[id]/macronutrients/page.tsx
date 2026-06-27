@@ -74,7 +74,7 @@ const STATUS_VALUE: Record<Status, string> = {
   high:    'text-amber-600',
 }
 
-// ─── Range bar — same style as foundation / pathogen pages ────────────────────
+// ─── Range bar - same style as foundation / pathogen pages ────────────────────
 
 interface RangeBarProps {
   score:   number
@@ -112,7 +112,7 @@ function RangeBar({ score, min, max, refLow, refHigh, status }: RangeBarProps) {
         <div className="absolute inset-0 rounded-full overflow-hidden">
           {/* Below range */}
           <div className="absolute top-0 h-full bg-gray-100" style={{ left: 0, width: `${refL}%` }} />
-          {/* Reference range — green */}
+          {/* Reference range - green */}
           <div className="absolute top-0 h-full bg-[#C8E9A8]" style={{ left: `${refL}%`, width: `${refW}%` }} />
           {/* Above range */}
           <div className="absolute top-0 h-full bg-gray-100" style={{ left: `${refL + refW}%`, right: 0 }} />
@@ -310,15 +310,15 @@ export default function MacronutrientPage() {
             <div className="grid grid-cols-3 gap-4 text-xs text-gray-500">
               <div className="flex gap-2 items-start">
                 <div className="mt-1 w-3 h-3 rounded-full bg-[#6EA832] border-2 border-white shadow flex-shrink-0" />
-                <div><strong className="text-gray-700">In range</strong> — microbiome has adequate potential for this metabolic function</div>
+                <div><strong className="text-gray-700">In range</strong> - microbiome has adequate potential for this metabolic function</div>
               </div>
               <div className="flex gap-2 items-start">
                 <div className="mt-1 w-3 h-3 rounded-full bg-red-400 border-2 border-white shadow flex-shrink-0" />
-                <div><strong className="text-gray-700">Below range</strong> — reduced metabolic potential; may affect digestion and energy</div>
+                <div><strong className="text-gray-700">Below range</strong> - reduced metabolic potential; may affect digestion and energy</div>
               </div>
               <div className="flex gap-2 items-start">
                 <div className="mt-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-white shadow flex-shrink-0" />
-                <div><strong className="text-gray-700">Above range</strong> — elevated metabolic activity; correlate clinically</div>
+                <div><strong className="text-gray-700">Above range</strong> - elevated metabolic activity; correlate clinically</div>
               </div>
             </div>
           </div>

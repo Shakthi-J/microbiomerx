@@ -49,14 +49,14 @@ export default function TrainingPage() {
 
 Patient: ${full.patient_name}, ${full.patient_age_sex}
 Complaint: ${full.patient_complaint ?? 'Not specified'}
-Rych Index: ${rd.rych_index ?? '--'}
-Aerobic Endurance: ${rd.endurance?.aerobic ?? '--'}
-Physical Endurance: ${rd.endurance?.physical ?? '--'}
-Gut Inflammation Risk: ${rd.health_indicators?.gut_inflammation ?? '--'}
-Fatigue Risk: ${rd.health_indicators?.fatigue ?? '--'}
-Serotonin Level: ${rd.neurotransmitters?.serotonin ?? '--'}
-GABA Level: ${rd.neurotransmitters?.gaba ?? '--'}
-Dopamine Level: ${rd.neurotransmitters?.dopamine ?? '--'}
+Rych Index: ${rd.rych_index ??' '}
+Aerobic Endurance: ${rd.endurance?.aerobic ??' '}
+Physical Endurance: ${rd.endurance?.physical ??' '}
+Gut Inflammation Risk: ${rd.health_indicators?.gut_inflammation ??' '}
+Fatigue Risk: ${rd.health_indicators?.fatigue ??' '}
+Serotonin Level: ${rd.neurotransmitters?.serotonin ??' '}
+GABA Level: ${rd.neurotransmitters?.gaba ??' '}
+Dopamine Level: ${rd.neurotransmitters?.dopamine ??' '}
 Disease Risks: ${JSON.stringify(rd.disease_risk ?? {})}
 
 Recommend:

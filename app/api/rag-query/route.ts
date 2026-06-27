@@ -53,7 +53,7 @@ async function getAICContext(reportId: string): Promise<string> {
       return ''
     }
 
-    const fmt = (v: unknown) => typeof v === 'number' ? v.toFixed(1) : v != null ? String(v) : '—'
+    const fmt = (v: unknown) => typeof v === 'number' ? v.toFixed(1) : v != null ? String(v) : '-'
     const num = (v: unknown) => typeof v === 'number' ? v : parseFloat(String(v ?? '0')) || 0
 
     const hi   = (raw.health_indicators  ?? {}) as Record<string,unknown>
@@ -103,21 +103,21 @@ async function getAICContext(reportId: string): Promise<string> {
     // ── Build the relevant conditions list ────────────────────────────────
     const relevantConditions: string[] = []
 
-    if (leakyGut > 0 && leakyGut < 65)    relevantConditions.push('Leaky Gut Syndrome — Moderate', 'Leaky Gut Syndrome — Severe + IBD Risk')
+    if (leakyGut > 0 && leakyGut < 65)    relevantConditions.push('Leaky Gut Syndrome - Moderate', 'Leaky Gut Syndrome - Severe + IBD Risk')
     if (gutInflam > 0 && gutInflam < 65)   relevantConditions.push('Colonic Inflammation + Leaky Gut', 'Severe Gut Inflammation + IBD/IBS Trigger')
     if (constipRisk > 20)                  relevantConditions.push('Constipation + Gut Stasis + Dysbiosis Perpetuation', 'Methane-Dominant SIBO / Constipation Driver')
     if (absent.length > 0)                 relevantConditions.push('Moderate Gut Dysbiosis', 'Severe Gut Dysbiosis', 'Post-Antibiotic Gut Damage')
     if (pathDet.length > 0)                relevantConditions.push('Fungal Dysbiosis / Candida Overgrowth', 'Blastocystis Parasitic Colonisation', 'Multi-Drug Resistance Profile')
-    if (butyrate > 0 && butyrate < 60)     relevantConditions.push('Butyrate Deficiency — Colonocyte Energy Failure')
+    if (butyrate > 0 && butyrate < 60)     relevantConditions.push('Butyrate Deficiency - Colonocyte Energy Failure')
     if (tmao > 40)                         relevantConditions.push('Microplastic Toxicity + Systemic Toxin Load')
-    if (vitB12 > 0 && vitB12 < 47)        relevantConditions.push('B12 Deficiency — Neurological + Energy + Anemia')
-    if (gaba > 0 && gaba < 50)            relevantConditions.push('Neurotransmitter Deficiency — Serotonin + Dopamine + GABA', 'Anxiety + Poor Sleep + Gut Motility Impairment')
-    if (diabetesRisk > 10)                 relevantConditions.push('Metabolic Dysregulation — T2D Risk')
-    if (hypertensionRisk > 15)             relevantConditions.push('Cardiovascular Risk — Microbiome-Driven Hypertension')
+    if (vitB12 > 0 && vitB12 < 47)        relevantConditions.push('B12 Deficiency - Neurological + Energy + Anemia')
+    if (gaba > 0 && gaba < 50)            relevantConditions.push('Neurotransmitter Deficiency - Serotonin + Dopamine + GABA', 'Anxiety + Poor Sleep + Gut Motility Impairment')
+    if (diabetesRisk > 10)                 relevantConditions.push('Metabolic Dysregulation - T2D Risk')
+    if (hypertensionRisk > 15)             relevantConditions.push('Cardiovascular Risk - Microbiome-Driven Hypertension')
     if (rychIndex < 45)                    relevantConditions.push('Immune Suppression + Leaky Gut + Oxidative Stress')
 
     // Always add base conditions
-    relevantConditions.push('Gut Barrier Failure — Mucin Layer Degradation', 'Prevotella Deficiency — Fibre Fermentation Gap')
+    relevantConditions.push('Gut Barrier Failure - Mucin Layer Degradation', 'Prevotella Deficiency - Fibre Fermentation Gap')
 
     const uniqueConditions = [...new Set(relevantConditions)].slice(0, 12)
     console.log('[AIC] Relevant conditions:', uniqueConditions.length, uniqueConditions.slice(0,3).join(', '))
@@ -164,14 +164,14 @@ async function getAICContext(reportId: string): Promise<string> {
     let engineBlock = ''
     if (supps.length === 0 && ro?.supplements?.length > 0) {
       const items = (ro.supplements as any[]).slice(0,12)
-        .map((s:any) => `  • [${s.protocol_phase}] ${s.product_name} — ${s.dose ?? ''} | ${s.timing ?? ''}`)
+        .map((s:any) => `  • [${s.protocol_phase}] ${s.product_name} - ${s.dose ?? ''} | ${s.timing ?? ''}`)
         .join('\n')
       engineBlock = `\nPREVIOUSLY GENERATED PLAN (use these):\n${items}`
       console.log('[AIC] Using rules_output supplements as fallback')
     }
 
     if (supps.length === 0 && !engineBlock) {
-      console.log('[AIC] No supplements matched — returning empty')
+      console.log('[AIC] No supplements matched - returning empty')
       return ''
     }
 
@@ -180,7 +180,7 @@ async function getAICContext(reportId: string): Promise<string> {
       `Rych Index: ${rychIndex} | Antibiotic Recovery: ${fmt(raw.antibiotic_recovery)}`,
       `Leaky Gut: ${leakyGut.toFixed(1)} (low=bad) | Gut Inflammation: ${gutInflam.toFixed(1)} (low=bad)`,
       `Constipation Risk: ${constipRisk.toFixed(1)}% | Hypertension: ${hypertensionRisk.toFixed(1)}% | T2D: ${diabetesRisk.toFixed(1)}%`,
-      `SCFA — Butyrate: ${butyrate.toFixed(1)} | Propionate: ${propionate.toFixed(1)} | Acetate: ${acetate.toFixed(1)}`,
+      `SCFA - Butyrate: ${butyrate.toFixed(1)} | Propionate: ${propionate.toFixed(1)} | Acetate: ${acetate.toFixed(1)}`,
       absent.length > 0 ? `Absent Probiotics: ${absent.join(', ')}` : 'Absent Probiotics: None',
       pathDet.length > 0 ? `Pathogens: ${pathDet.join(', ')}` : 'Pathogens: None',
     ].join('\n')
@@ -188,21 +188,21 @@ async function getAICContext(reportId: string): Promise<string> {
     // Limit to 8 supplements to stay under token limit
     const suppBlock = supps.slice(0,8).length > 0
       ? supps.slice(0,8).map(s =>
-          `• [${s.protocol_phase}] ${s.product_name}: ${s.dose ?? '—'} ${s.timing ?? ''} — ${s.condition_name}`
+          `• [${s.protocol_phase}] ${s.product_name}: ${s.dose ?? '-'} ${s.timing ?? ''} - ${s.condition_name}`
         ).join('\n')
       : 'No supplements matched from KB.'
 
     const therBlock = thers.slice(0,4).length > 0
-      ? thers.slice(0,4).map(t => `• ${t.modality || t.therapy_type}: ${t.frequency ?? '—'} | ${t.course_length ?? '—'}`).join('\n')
+      ? thers.slice(0,4).map(t => `• ${t.modality || t.therapy_type}: ${t.frequency ?? '-'} | ${t.course_length ?? '-'}`).join('\n')
       : ''
 
     const dietBlock = diets.slice(0,4).length > 0
       ? diets.slice(0,4).map(d => `• ${d.condition_name} (${d.phase ?? ''}): ${(d.specific_instructions ?? '').slice(0,120)}`).join('\n')
       : ''
 
-    // Pre-format the complete supplement answer — LLM only adds 1-sentence rationale
+    // Pre-format the complete supplement answer - LLM only adds 1-sentence rationale
     const preformatted = supps.slice(0,8).map(s =>
-      `• ${s.product_name} [${s.protocol_phase}]\n  Dose: ${s.dose ?? '—'} | Timing: ${s.timing ?? '—'}\n  Condition: ${s.condition_name}`
+      `• ${s.product_name} [${s.protocol_phase}]\n  Dose: ${s.dose ?? '-'} | Timing: ${s.timing ?? '-'}\n  Condition: ${s.condition_name}`
     ).join('\n\n')
 
     return [
@@ -273,7 +273,7 @@ export async function POST(req: NextRequest) {
     const knowledgeCtx = chunks.length > 0
       ? chunks.map((c:any,i:number) => `[${i+1}: ${c.source_file}]\n${c.content}`).join('\n\n---\n\n')
       : ''
-    // Do NOT send full report_data JSON — too large. AIC context already has biomarker summary.
+    // Do NOT send full report_data JSON - too large. AIC context already has biomarker summary.
     const reportCtx = report
       ? `Patient: ${report.patient_name ?? ''}, ${report.patient_age_sex ?? ''}`
       : ''

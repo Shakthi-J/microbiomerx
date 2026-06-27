@@ -8,7 +8,7 @@ import { ReactNode } from 'react'
 import { useAssistant } from '@/lib/AssistantContext'
 import { usePdfPanel, PDF_PANEL_W } from '@/lib/PdfPanelContext'
 
-const SIDEBAR_W = 400  // px — keep in sync with ClinicalAssistant panel width
+const SIDEBAR_W = 400  // px - keep in sync with ClinicalAssistant panel width
 
 export default function LayoutShell({ children }: { children: ReactNode }) {
   const { isOpen }    = useAssistant()

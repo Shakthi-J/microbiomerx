@@ -50,7 +50,7 @@ export function extractFoundationMicrobiota(pdfText: string): FoundationSpecies[
   const anchorMatch = pdfText.match(ANCHOR)
 
   if (!anchorMatch) {
-    console.warn('[FM] Anchor sentence not found — trying heading fallback')
+    console.warn('[FM] Anchor sentence not found - trying heading fallback')
   }
 
   // Start extracting from right after the anchor sentence
@@ -126,7 +126,7 @@ export function extractFoundationMicrobiota(pdfText: string): FoundationSpecies[
         console.log(`[FM] ✓ ${name} → ${patientValue} (${status})`)
       }
     } else {
-      console.log(`[FM] ✗ ${name} — patient:${patientValue} boundaries:${JSON.stringify(boundaries)}`)
+      console.log(`[FM] ✗ ${name} - patient:${patientValue} boundaries:${JSON.stringify(boundaries)}`)
     }
 
     i++

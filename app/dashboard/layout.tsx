@@ -39,7 +39,7 @@ function getRychColor(score: number | null | undefined) {
 }
 
 function formatDate(dateStr: string | null | undefined) {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return dateStr
   return d.toLocaleDateString('en-IN', {
@@ -167,7 +167,7 @@ function DashboardContent({
       <header className="sticky top-0 z-40 bg-[#F8FAF6]/90 backdrop-blur-sm
         border-b border-[#E2F3D0] px-8 py-3 flex items-center justify-between">
 
-        {/* Left — brand */}
+        {/* Left - brand */}
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-[#538A22] flex items-center
             justify-center text-base leading-none">🦠</div>
@@ -177,7 +177,7 @@ function DashboardContent({
           <span className="text-gray-300 mx-1 select-none">·</span>
         </div>
 
-        {/* Right — email + sign out + feedback */}
+        {/* Right - email + sign out + feedback */}
 <div className="flex flex-col items-end gap-2">
   <div className="flex items-center gap-3">
     {userEmail && (
@@ -399,7 +399,7 @@ function DashboardContent({
                       {/* Patient ID */}
                       <td className="px-5 py-4">
                         <span className="text-[11px] font-mono text-gray-500">
-                          {patient?.sample_id ?? '—'}
+                          {patient?.sample_id ?? '-'}
                         </span>
                       </td>
 
@@ -413,7 +413,7 @@ function DashboardContent({
                       {/* Age / Sex */}
                       <td className="px-5 py-4">
                         <span className="text-[12px] text-gray-500 font-mono">
-                          {report.patient_age_sex ?? '—'}
+                          {report.patient_age_sex ?? '-'}
                         </span>
                       </td>
 

@@ -1,5 +1,5 @@
 // app/api/aic-supplements/route.ts
-// AIC Supplement Recommendation Engine — v2.0.0
+// AIC Supplement Recommendation Engine - v2.0.0
 // Products fetched from Supabase aic_products table (not hardcoded)
 // Rules engine (deterministic) -> Groq (writes clinical rationale only)
 
@@ -50,14 +50,14 @@ async function writeRationale(rec: AICRecommendation): Promise<string> {
             'You are a senior clinical gut microbiome specialist writing supplement rationales for a functional medicine doctor.',
             '',
             'VOICE: Confident, clinical, and hopeful. The patient has a clear problem and this supplement directly addresses it.',
-            'Write as if explaining to a colleague — not hedging, not marketing.',
+            'Write as if explaining to a colleague - not hedging, not marketing.',
             '',
             'RULES:',
             '- Never use: "may", "might", "could", "perhaps", "possibly", "consider", "suggest"',
             '- Use instead: "is", "does", "directly", "addresses", "restores", "supports", "provides", "is indicated for"',
             '- Do NOT use the word "prescribe"',
-            '- Frame findings as addressable, not alarming — the supplement is the solution',
-            '- Be specific to the exact patient findings given — never generic',
+            '- Frame findings as addressable, not alarming - the supplement is the solution',
+            '- Be specific to the exact patient findings given - never generic',
             '- Maximum 3 sentences. Each sentence must add clinical value.',
             '- End with a forward-looking statement about what improves',
           ].join('\n'),

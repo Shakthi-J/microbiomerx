@@ -88,7 +88,7 @@ function getRecoveryStatus(score: number | null, tag: string | null): RecoverySt
   return 'unknown'
 }
 
-// ─── Recovery bar — same style as foundation page ─────────────────────────────
+// ─── Recovery bar - same style as foundation page ─────────────────────────────
 
 function RecoveryBar({ score }: { score: number }) {
   const min    = 0
@@ -243,7 +243,7 @@ export default function AntibioticsPage() {
 
         {/* ── Disclaimer ───────────────────────────────────────────────── */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-800 leading-relaxed">
-          ⚠️ Identifies <strong>acquired resistance genes</strong> from metagenomic sequencing —
+          ⚠️ Identifies <strong>acquired resistance genes</strong> from metagenomic sequencing -
           not equivalent to standard AST/MIC testing. Results should be interpreted alongside
           clinical presentation and validated microbiology data before treatment decisions.
         </div>
@@ -289,7 +289,7 @@ export default function AntibioticsPage() {
             {resistantEntries.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
                 <p className="text-xs font-mono text-amber-800 uppercase tracking-wide font-medium mb-3">
-                  ⚠ {resistantEntries.length} resistance gene{resistantEntries.length > 1 ? 's' : ''} detected — clinical review recommended
+                  ⚠ {resistantEntries.length} resistance gene{resistantEntries.length > 1 ? 's' : ''} detected - clinical review recommended
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {resistantEntries.map(e => (
@@ -479,7 +479,7 @@ export default function AntibioticsPage() {
                     <p className="text-sm text-amber-700">
                       {recoveryTag
                         ? `Recovery potential: ${recoveryTag} (numeric score not extracted)`
-                        : 'Recovery score not found — re-upload PDF to extract data'}
+                        : 'Recovery score not found - re-upload PDF to extract data'}
                     </p>
                   </div>
                 )}
@@ -495,11 +495,11 @@ export default function AntibioticsPage() {
                 </div>
                 <div className="flex gap-2 items-start">
                   <div className="mt-0.5 w-3 h-3 rounded-full bg-[#6EA832] border-2 border-white shadow flex-shrink-0" />
-                  <div><div className="font-medium text-gray-700 mb-0.5">Green dot</div><div className="text-gray-500">Score within reference range — good recovery potential</div></div>
+                  <div><div className="font-medium text-gray-700 mb-0.5">Green dot</div><div className="text-gray-500">Score within reference range - good recovery potential</div></div>
                 </div>
                 <div className="flex gap-2 items-start">
                   <div className="mt-0.5 w-3 h-3 rounded-full bg-amber-400 border-2 border-white shadow flex-shrink-0" />
-                  <div><div className="font-medium text-gray-700 mb-0.5">Amber dot</div><div className="text-gray-500">Score below reference — reduced recovery potential</div></div>
+                  <div><div className="font-medium text-gray-700 mb-0.5">Amber dot</div><div className="text-gray-500">Score below reference - reduced recovery potential</div></div>
                 </div>
               </div>
             </div>

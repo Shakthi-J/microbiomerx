@@ -78,7 +78,7 @@ const STATUS_DOT: Record<string, string> = {
   high:   'bg-amber-400',
 }
 
-// ─── Range bar — identical to foundation page ─────────────────────────────────
+// ─── Range bar - identical to foundation page ─────────────────────────────────
 
 function RangeBar({ p }: { p: PathogenSpecies }) {
   const range  = p.max - p.min || 1
@@ -153,7 +153,7 @@ export default function PathogensPage() {
 
   const rd          = report.report_data
   const species     = getArray<PathogenSpecies>(rd, 'pathogens_data')
-  const categoryTag = getStringField(rd, 'pathogen_category_tag') ?? '—'
+  const categoryTag = getStringField(rd, 'pathogen_category_tag') ?? '-'
 
   const enriched    = species.map(p => ({ ...p, category: getCategory(p.name) }))
   const highCount   = enriched.filter(p => p.status === 'high').length
@@ -227,7 +227,7 @@ export default function PathogensPage() {
           {highCount > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
               <p className="text-xs font-mono text-amber-800 uppercase tracking-wide font-medium mb-3">
-                ⚠ {highCount} pathogen{highCount > 1 ? 's' : ''} above reference range — correlate clinically
+                ⚠ {highCount} pathogen{highCount > 1 ? 's' : ''} above reference range - correlate clinically
               </p>
               <div className="flex flex-wrap gap-2">
                 {enriched.filter(p => p.status === 'high').map((p, idx) => (
@@ -250,8 +250,8 @@ export default function PathogensPage() {
               BugSpeaks® identifies and characterizes{' '}
               <strong>{species.length} pathogens</strong> commonly known to cause gut
               infections and other health issues. Values represent relative abundance from
-              sequencing — not a culture-based diagnostic. Please correlate clinically.
-              {categoryTag !== '—' && (
+              sequencing - not a culture-based diagnostic. Please correlate clinically.
+              {categoryTag !== '-' && (
                 <> Category tag: <strong>{categoryTag}</strong>.</>
               )}
             </p>
@@ -309,7 +309,7 @@ export default function PathogensPage() {
                     <span className={`ml-auto text-xs font-mono ${cfg.color}`}>{items.length}</span>
                   </div>
 
-                  {/* Species cards — same as foundation page */}
+                  {/* Species cards - same as foundation page */}
                   <div className="space-y-3">
                     {items.map((p, idx) => (
                       <div

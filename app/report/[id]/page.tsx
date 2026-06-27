@@ -128,7 +128,7 @@ export default function ReportPage() {
                 <p className="text-[9px] font-mono uppercase tracking-widest mb-0.5"
                   style={{ color: '#538A22' }}>Age / Sex</p>
                 <p className="text-sm font-mono font-medium" style={{ color: '#1A3207' }}>
-                  {report.patient_age_sex || '—'}
+                  {report.patient_age_sex || '-'}
                 </p>
               </div>
               <div className="rounded-xl px-3 py-2"
@@ -136,7 +136,7 @@ export default function ReportPage() {
                 <p className="text-[9px] font-mono uppercase tracking-widest mb-0.5"
                   style={{ color: '#538A22' }}>Patient ID</p>
                 <p className="text-[11px] font-mono font-medium" style={{ color: '#1A3207' }}>
-                  {rd?.patient?.sample_id || '—'}
+                  {rd?.patient?.sample_id || '-'}
                 </p>
               </div>
             </div>

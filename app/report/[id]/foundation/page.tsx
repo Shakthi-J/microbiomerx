@@ -168,7 +168,7 @@ export default function FoundationMicrobiotaPage() {
             <p className="text-sm text-blue-900 leading-relaxed">
               Foundation microbiota are keystone species whose presence or abundance has outsized
               effects on the entire microbiome ecosystem. BugSpeaks detected{' '}
-              <strong>{species.length} keystone species</strong> in this report — perturbations
+              <strong>{species.length} keystone species</strong> in this report - perturbations
               in these affect SCFA production, immune function, gut barrier integrity, and mental health.
             </p>
           </div>

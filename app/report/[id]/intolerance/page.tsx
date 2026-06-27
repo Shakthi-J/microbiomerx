@@ -140,7 +140,7 @@ export default function IntolerancePage() {
                   {atRisk.length} intolerance{atRisk.length > 1 ? 's' : ''} flagged at risk
                 </p>
                 <p className="text-xs text-amber-700 mt-0.5">
-                  {atRisk.map(s => s.label.replace(' Management', '')).join(', ')} — microbiome scores below clinical threshold.
+                  {atRisk.map(s => s.label.replace(' Management', '')).join(', ')} - microbiome scores below clinical threshold.
                 </p>
               </div>
             </div>

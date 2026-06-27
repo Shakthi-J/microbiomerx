@@ -1,5 +1,5 @@
 /**
- * MicrobiomeRx — Rules Engine V2
+ * MicrobiomeRx - Rules Engine V2
  * Deterministic. No AI in any decision.
  * Matches actual ReportData shape from extractSpecies.ts
  */
@@ -167,7 +167,7 @@ function extractFlaggedMarkers(reportData: Record<string, unknown>): MarkerInput
   // DIRECT markers: LOW score = LOW function (Intestinal Motility etc.)
   const hi = (reportData.health_indicators ?? {}) as Record<string, number | null>
 
-  // Inverted — LOW score means HIGH severity
+  // Inverted - LOW score means HIGH severity
   const invertedHiMap: Record<string, string> = {
     gut_inflammation: 'Gut Inflammation',
     leaky_gut:        'Leaky Gut',
@@ -179,7 +179,7 @@ function extractFlaggedMarkers(reportData: Record<string, unknown>): MarkerInput
     else if (val >= 40 && val < 65) flagged.push({ markername: markerName, status: 'MODERATE' })
   }
 
-  // Direct — LOW score means LOW function
+  // Direct - LOW score means LOW function
   const directHiMap: Record<string, string> = {
     gut_motility:           'Intestinal Motility',
     histamine_tolerance:    'Histamine Intolerance',
@@ -323,7 +323,7 @@ function buildContraindicationAlerts(
   if (histamine !== null && histamine < 40) {
     alerts.push({
       marker: 'Histamine Tolerance',
-      alert: 'LOW Histamine Tolerance — VSL#3, L. casei, and L. bulgaricus are CONTRAINDICATED. Use only: L. rhamnosus, B. longum, L. plantarum.',
+      alert: 'LOW Histamine Tolerance - VSL#3, L. casei, and L. bulgaricus are CONTRAINDICATED. Use only: L. rhamnosus, B. longum, L. plantarum.',
       severity: 'CRITICAL',
     })
   }
@@ -344,7 +344,7 @@ export async function runRulesEngineV2(
   const tierLabel = getRychTierLabel(tier)
   const tierStr  = `Tier ${tier}`
 
-  // Step 1 — Extract flagged markers
+  // Step 1 - Extract flagged markers
   const markerInputs = extractFlaggedMarkers(reportData)
 
   console.log(`[rulesEngineV2] Rych: ${rych} (Tier ${tier}), flagged markers: ${markerInputs.length}`)
@@ -355,7 +355,7 @@ export async function runRulesEngineV2(
       'No flagged markers found. Check that report_data is fully parsed.')
   }
 
-  // Step 2 — Query marker_protocol_map
+  // Step 2 - Query marker_protocol_map
   const markerNames = [...new Set(markerInputs.map(m => m.markername))]
   const { data: protocolRows, error: protocolError } = await supabase
     .from('marker_protocol_map')
@@ -415,7 +415,7 @@ export async function runRulesEngineV2(
   console.log(`[rulesEngineV2] therapy lookup: ${therapyConditions.join(', ')}`)
   console.log(`[rulesEngineV2] dietary lookup: ${dietaryConditions.join(', ')}`)
 
-  // Step 3 — Supplements
+  // Step 3 - Supplements
   let supplements: SupplementRecommendation[] = []
   if (suppConditions.length > 0) {
     const { data } = await supabase
@@ -441,7 +441,7 @@ export async function runRulesEngineV2(
       }))
   }
 
-  // Step 4 — Therapies (filtered by Rych tier)
+  // Step 4 - Therapies (filtered by Rych tier)
   let therapies: TherapyRecommendation[] = []
   if (therapyConditions.length > 0) {
     const { data } = await supabase
@@ -465,7 +465,7 @@ export async function runRulesEngineV2(
     }))
   }
 
-  // Step 5 — Dietary
+  // Step 5 - Dietary
   let dietary: DietaryRecommendation[] = []
   if (dietaryConditions.length > 0) {
     const { data } = await supabase
@@ -487,7 +487,7 @@ export async function runRulesEngineV2(
     }))
   }
 
-  // Step 6 — Probiotics
+  // Step 6 - Probiotics
   let probiotics: ProbioticRecommendation[] = []
   const probioticSeen = new Set<string>()
 
@@ -527,7 +527,7 @@ export async function runRulesEngineV2(
     addProbiotics(data ?? [])
   }
 
-  // Step 7 — Contraindication alerts
+  // Step 7 - Contraindication alerts
   const contraindicationAlerts = buildContraindicationAlerts(flaggedMarkers, reportData)
 
   return {

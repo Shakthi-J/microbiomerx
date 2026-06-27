@@ -138,7 +138,7 @@ export default function UploadPage() {
 
       if (dbError) throw dbError
 
-      // ── 2. Navigate immediately — don't block on PDF upload ──────────────
+      // ── 2. Navigate immediately - don't block on PDF upload ──────────────
       // PDF is only needed when the doctor clicks "View PDF", not at page load.
       router.push(`/report/${data.id}`)
 
@@ -153,7 +153,7 @@ export default function UploadPage() {
       setError(e instanceof Error ? e.message : 'Failed to save')
       setSaving(false)
     }
-    // Note: setSaving(false) intentionally omitted on success —
+    // Note: setSaving(false) intentionally omitted on success -
     // the component unmounts on navigation so it doesn't matter.
   }
 
@@ -178,7 +178,7 @@ export default function UploadPage() {
           <div>
             <Link href="/dashboard" className="text-xs font-mono text-gray-400 hover:text-[#538A22] transition mb-2 block">← Dashboard</Link>
             <h1 className="text-2xl font-light text-gray-900">Upload report</h1>
-            <p className="text-xs text-gray-400 font-mono mt-1">BugSpeaks PDF — all data extracted automatically</p>
+            <p className="text-xs text-gray-400 font-mono mt-1">BugSpeaks PDF - all data extracted automatically</p>
           </div>
         </div>
 
@@ -242,8 +242,8 @@ export default function UploadPage() {
                   </div>
                   <span className={`text-xs ${foodCount > 0 ? 'text-gray-700' : 'text-amber-600'}`}>
                     {foodCount > 0
-                      ? `Nutrition data — ${foodCount} foods across ${Object.keys(nutritionObj).length} categories`
-                      : 'Nutrition data unavailable — re-upload or check PDF'}
+                      ? `Nutrition data - ${foodCount} foods across ${Object.keys(nutritionObj).length} categories`
+                      : 'Nutrition data unavailable - re-upload or check PDF'}
                   </span>
                 </div>
               )}

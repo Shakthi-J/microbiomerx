@@ -25,15 +25,15 @@ const KB1_TO_SUPPLEMENTS: Record<string, string> = {
     'Acetate Deficiency',
 
   // Vitamins
-  'Thiamine Deficiency — Energy + Nerve Function':
+  'Thiamine Deficiency - Energy + Nerve Function':
     'Vitamin B1 Deficiency',
-  'NAD+ Depletion — Mitochondrial Dysfunction':
+  'NAD+ Depletion - Mitochondrial Dysfunction':
     'Vitamin B3 Deficiency',
   'Adrenal + Stress Hormone Dysregulation':
     'Vitamin B5 Deficiency',
-  'Neurotransmitter Deficiency — Serotonin + Dopamine + GABA':
+  'Neurotransmitter Deficiency - Serotonin + Dopamine + GABA':
     'Vitamin B6 (P5P) Deficiency',
-  'B12 Deficiency — Neurological + Energy + Anemia':
+  'B12 Deficiency - Neurological + Energy + Anemia':
     'Vitamin B12 Deficiency',
   'Immune Suppression + Leaky Gut + Oxidative Stress':
     'Vitamin C Deficiency',
@@ -49,9 +49,9 @@ const KB1_TO_SUPPLEMENTS: Record<string, string> = {
     'Dopamine Precursor Deficiency',
 
   // Leaky Gut
-  'Leaky Gut Syndrome — Moderate':
+  'Leaky Gut Syndrome - Moderate':
     'Leaky Gut (Moderate)',
-  'Leaky Gut Syndrome — Severe + IBD Risk':
+  'Leaky Gut Syndrome - Severe + IBD Risk':
     'Leaky Gut (High / Severe)',
 
   // Gut Function
@@ -67,7 +67,7 @@ const KB1_TO_SUPPLEMENTS: Record<string, string> = {
   'Histamine Intolerance': 'Histamine Intolerance',
 
   // Health Indicators
-  'Chronic Gut Inflammation — Moderate':
+  'Chronic Gut Inflammation - Moderate':
     'Gut Inflammation (Moderate)',
   'Severe Gut Inflammation + IBD/IBS Trigger':
     'Gut Inflammation (High / IBD Risk)',
@@ -77,34 +77,34 @@ const KB1_TO_SUPPLEMENTS: Record<string, string> = {
     'Liver Toxin Burden (High)',
 
   // Disease Risk
-  'Constipation Risk — Microbiome Driven':
+  'Constipation Risk - Microbiome Driven':
     'Constipation / Low Motility',
-  'Cardiovascular Risk — Microbiome-Driven Hypertension':
+  'Cardiovascular Risk - Microbiome-Driven Hypertension':
     'Hypertension Risk',
-  'Metabolic Dysregulation — T2D Risk':
+  'Metabolic Dysregulation - T2D Risk':
     'T2D Risk / Metabolic Syndrome',
-  'Metabolic Obesity — Microbiome-Mediated':
+  'Metabolic Obesity - Microbiome-Mediated':
     'Obesity / Metabolic Obesity',
-  'IBD Predisposition — Inflammatory Cascade Risk':
+  'IBD Predisposition - Inflammatory Cascade Risk':
     'Gut Inflammation (High / IBD Risk)',
-  'IBS — Gut Microbiome Driven':
+  'IBS - Gut Microbiome Driven':
     'Gut Inflammation (Moderate)',
   'Non-Alcoholic Fatty Liver Disease Risk':
     'NAFLD',
 
   // Specific Bacteria
-  'Prevotella Deficiency — Fibre Fermentation Gap': '',
-  'Prevotella Dominance — RA + Autoimmune Association':
-    'Prevotella copri (HIGH — RA risk)',
-  'E. coli Overgrowth — Proteobacteria Dysbiosis':
+  'Prevotella Deficiency - Fibre Fermentation Gap': '',
+  'Prevotella Dominance - RA + Autoimmune Association':
+    'Prevotella copri (HIGH - RA risk)',
+  'E. coli Overgrowth - Proteobacteria Dysbiosis':
     'E. coli Overgrowth',
-  'Gut Barrier Failure — Mucin Layer Degradation':
+  'Gut Barrier Failure - Mucin Layer Degradation':
     'Akkermansia Deficiency',
 
   // Resistance / Pathogens
   'Multi-Drug Resistance Profile':
     'Antibiotic Resistance (Elevated)',
-  'Shigella Infection — Bacterial Pathogen':
+  'Shigella Infection - Bacterial Pathogen':
     'Shigella / Bacterial Pathogen',
   'Blastocystis Parasitic Colonisation':
     'Blastocystis Detection',

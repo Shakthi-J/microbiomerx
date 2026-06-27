@@ -1,5 +1,5 @@
 // lib/clpTreatments.ts
-// Clinic Living Plus — Gut Management Treatments Catalogue
+// Clinic Living Plus - Gut Management Treatments Catalogue
 // Source: Gut_Treatments_Summary.xlsx
 
 export type ClpTreatment = {
@@ -26,7 +26,7 @@ export type ClpTreatment = {
         'Personalised elimination diet (L-glutamine, zinc)',
         'Targeted stress-management protocol',
         'Therapeutic probiotic supplementation',
-        'Ozone therapy — gut lining repair',
+        'Ozone therapy - gut lining repair',
         'IV nutrient therapy',
       ],
       match_keys: ['leaky gut', 'intestinal permeability', 'gut lining', 'zonulin', 'barrier', 'food sensitivity', 'autoimmune'],
@@ -35,7 +35,7 @@ export type ClpTreatment = {
     {
       condition: 'Gut Dysbiosis',
       what_it_is:
-        'Imbalance in the gut microbiome — overgrowth of harmful bacteria or loss of beneficial ones.',
+        'Imbalance in the gut microbiome - overgrowth of harmful bacteria or loss of beneficial ones.',
       symptoms_addressed: [
         'Bloating', 'Abdominal pain', 'Irregular bowels',
         'Fatigue', 'Brain fog', 'Mood issues',
@@ -44,7 +44,7 @@ export type ClpTreatment = {
       treatments: [
         'Advanced microbiome testing & interpretation',
         'Targeted nutrition plan (prebiotics + probiotics)',
-        'Ozone therapy — antimicrobial & microbiome balancing',
+        'Ozone therapy - antimicrobial & microbiome balancing',
         'IV repair protocol',
       ],
       match_keys: ['dysbiosis', 'microbiome imbalance', 'diversity', 'harmful bacteria', 'pathogen', 'enterotype', 'overgrowth'],
@@ -59,7 +59,7 @@ export type ClpTreatment = {
       ],
       treatments: [
         'Root-cause dietary protocol',
-        'Ozone therapy — inflammation & flora correction',
+        'Ozone therapy - inflammation & flora correction',
         'IV nutrient therapy',
         'PPI-reduction pathway',
       ],
@@ -76,7 +76,7 @@ export type ClpTreatment = {
       ],
       treatments: [
         'Personalised gut-healing nutrition plan',
-        'Ozone therapy — anti-inflammatory',
+        'Ozone therapy - anti-inflammatory',
         'IV therapy with L-glutamine for mucosal repair',
         'Lifestyle & psychological support for remission',
       ],
@@ -110,7 +110,7 @@ export type ClpTreatment = {
       treatments: [
         'High-fibre nutrition protocol',
         'Microbiome restoration support',
-        'Ozone therapy — healing & inflammation control',
+        'Ozone therapy - healing & inflammation control',
         'IV therapy',
       ],
       match_keys: ['diverticulitis', 'diverticulosis', 'diverticula', 'colon pouches'],
@@ -160,7 +160,7 @@ export type ClpTreatment = {
       treatments: [
         'Acute support protocol',
         'Microbiome restoration programme',
-        'Ozone therapy — antimicrobial',
+        'Ozone therapy - antimicrobial',
         'IV rehydration & repair',
       ],
       match_keys: ['dysentery', 'post-infectious', 'parasitic', 'pathogen', 'bacterial infection', 'mucus stool'],
@@ -190,7 +190,7 @@ export type ClpTreatment = {
       treatments: [
         'Constipation resolution via fibre & hydration protocol',
         'Microbiome support',
-        'Ozone therapy — healing',
+        'Ozone therapy - healing',
         'IV therapy',
       ],
       match_keys: ['anal fissure', 'fissure', 'constipation', 'hard stools', 'rectal bleeding'],

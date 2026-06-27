@@ -142,7 +142,7 @@ export default function UploadModal({ initialFile, onClose }: UploadModalProps) 
 
       if (dbError) throw dbError
 
-      // ── 2. Navigate immediately — don't block on PDF upload ──────────────
+      // ── 2. Navigate immediately - don't block on PDF upload ──────────────
       router.push(`/report/${data.id}`)
 
       // ── 3. Upload PDF in the background after navigation ─────────────────
@@ -286,7 +286,7 @@ export default function UploadModal({ initialFile, onClose }: UploadModalProps) 
               onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#3D6B16' }}
               onMouseLeave={e => { if (!saving) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#538A22' }}
             >
-              {saving ? 'Saving…' : `Save — ${form.name || 'patient'} →`}
+              {saving ? 'Saving…' : `Save - ${form.name || 'patient'} →`}
             </button>
           )}
         </div>

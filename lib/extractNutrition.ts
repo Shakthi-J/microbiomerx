@@ -49,12 +49,12 @@ export const CATEGORY_EMOJI: Record<string, string> = {
 }
 
 /**
- * extractNutritionFromPDF — used by dietary-rx/page.tsx
+ * extractNutritionFromPDF - used by dietary-rx/page.tsx
  *
  * Called with the full report_data object loaded from Supabase.
  * Returns the nutrition map that was stored during PDF parsing,
  * or null if it hasn't been extracted yet (e.g. report was uploaded
- * before this feature was added — re-upload to populate it).
+ * before this feature was added - re-upload to populate it).
  */
 export async function extractNutritionFromPDF(
   pdfDoc: { numPages: number; getPage: (n: number) => Promise<unknown> },
@@ -90,7 +90,7 @@ export async function extractNutritionFromPDF(
   return extractNutritionFromPages(pages as any)
 }
 
-// A4 page height in points — all BugSpeaks PDFs are A4
+// A4 page height in points - all BugSpeaks PDFs are A4
 const PAGE_HEIGHT = 841.92
 
 // ─── Color detection ──────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ function extractCirclesFromOperatorList(
         const w = maxX - minX
         const h = maxY - minY
 
-        // All BugSpeaks dots are 13.5pt circles — allow ±3pt tolerance
+        // All BugSpeaks dots are 13.5pt circles - allow ±3pt tolerance
         if (w > 10 && w < 17 && h > 10 && h < 17) {
           const freq = colorToFreq(...currentColor)
           if (freq) {
@@ -262,7 +262,7 @@ function extractFromOnePage(
   for (const [rowTop, rowWords] of rows) {
     //  Left column: food names at x ≈ 46 (range 30–290)
     //  Right column: food names at x ≈ 328 (range 310–440)
-    //  Section headers (e.g. "Fruits") start at x ≈ 15 — exclude by x0 < 30
+    //  Section headers (e.g. "Fruits") start at x ≈ 15 - exclude by x0 < 30
     const leftWords  = rowWords.filter(w => w.x0 >= 30 && w.x0 < 290)
     const rightWords = rowWords.filter(w => w.x0 >= 310 && w.x0 < 440)
 

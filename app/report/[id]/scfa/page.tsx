@@ -35,9 +35,9 @@ const SCFA_REFS: Record<string, { label: string; low_ref: number; high_ref: numb
   propionate:        { label: 'Propionate',            low_ref: 53.96, high_ref: 68.416, clinical_note: 'Signals satiety via gut-brain axis; supports hepatic gluconeogenesis. Elevated levels may suppress acetate and butyrate production.' },
   butyrate:          { label: 'Butyrate',              low_ref: 59.94, high_ref: 71.932, clinical_note: 'Primary fuel for colonocytes; anti-inflammatory, strengthens gut barrier (tight junctions), inhibits colorectal cancer cell proliferation.' },
   isobutyric_acid:   { label: 'Isobutyric Acid',       low_ref: 63.2,  high_ref: 78.218, clinical_note: 'Branched-chain SCFA from protein fermentation. Low levels indicate reduced proteolytic fermentation.' },
-  valeric_acid:      { label: 'Valeric Acid',          low_ref: 71.05, high_ref: 98.24,  clinical_note: 'Emerging SCFA linked to anti-inflammatory activity. Significantly low — may reflect a depleted Lachnospiraceae population.' },
+  valeric_acid:      { label: 'Valeric Acid',          low_ref: 71.05, high_ref: 98.24,  clinical_note: 'Emerging SCFA linked to anti-inflammatory activity. Significantly low - may reflect a depleted Lachnospiraceae population.' },
   isovaleric_acid:   { label: 'Isovaleric Acid',       low_ref: 48.48, high_ref: 63.065, clinical_note: 'Branched-chain SCFA produced from leucine/valine catabolism. Low levels suggest limited amino acid fermentation.' },
-  methylbutyric_acid:{ label: '2-Methylbutyric Acid',  low_ref: 25.36, high_ref: 62.06,  clinical_note: 'Above-optimal branched-chain SCFA. High levels may indicate excess protein fermentation in the colon — a sign of proteolytic dysbiosis.' },
+  methylbutyric_acid:{ label: '2-Methylbutyric Acid',  low_ref: 25.36, high_ref: 62.06,  clinical_note: 'Above-optimal branched-chain SCFA. High levels may indicate excess protein fermentation in the colon - a sign of proteolytic dysbiosis.' },
   formate:           { label: 'Formate',               low_ref: 61.58, high_ref: 74.429, clinical_note: 'One-carbon unit donor; involved in nucleotide synthesis. Elevated formate may reflect increased Prevotella activity.' },
   caproate:          { label: 'Caproate (Hexanoate)',  low_ref: 43.31, high_ref: 71.124, clinical_note: 'Medium-chain fatty acid with antimicrobial properties; can be cytotoxic to colonocytes at high levels.' },
 }
@@ -136,7 +136,7 @@ function SummaryCard({ label, items, color, bg }: {
   return (
     <div className={`rounded-xl border p-4 ${bg}`} style={{ borderColor: color + '40' }}>
       <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color }}>
-        {label} — {items.length}
+        {label} - {items.length}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {items.map(name => (
@@ -266,12 +266,12 @@ export default function SCFAPage() {
             return bin === 'optimal' ? (
               <div className="bg-[#F2F9EC] border border-[#A8D878] rounded-xl px-4 py-3 text-sm text-[#3D6B16] mb-6 flex items-start gap-2">
                 <span>✓</span>
-                <span><strong>Butyrate is in the optimal range ({butyrate.score})</strong> — primary colonocyte fuel is well supported.</span>
+                <span><strong>Butyrate is in the optimal range ({butyrate.score})</strong> - primary colonocyte fuel is well supported.</span>
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 mb-6 flex items-start gap-2">
                 <span>⚠️</span>
-                <span><strong>Butyrate is {bin} ({butyrate.score})</strong> — clinically significant. Butyrate is the primary fuel for colonocytes and a key anti-inflammatory signal. Prioritise in supplementation and dietary advice.</span>
+                <span><strong>Butyrate is {bin} ({butyrate.score})</strong> - clinically significant. Butyrate is the primary fuel for colonocytes and a key anti-inflammatory signal. Prioritise in supplementation and dietary advice.</span>
               </div>
             )
           })()}
@@ -283,7 +283,7 @@ export default function SCFAPage() {
             return (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-6 flex items-start gap-2">
                 <span>⚑</span>
-                <span><strong>Elevated Formate ({formate.score})</strong> may reflect high Prevotella copri activity — consistent with Prevotella dominance in this patient's foundation microbiota.</span>
+                <span><strong>Elevated Formate ({formate.score})</strong> may reflect high Prevotella copri activity - consistent with Prevotella dominance in this patient's foundation microbiota.</span>
               </div>
             )
           })()}
@@ -295,7 +295,7 @@ export default function SCFAPage() {
             ))}
           </div>
 
-          {/* AI panel — same component used by all other section pages */}
+          {/* AI panel - same component used by all other section pages */}
           <SectionAiPanel
             analysis={analysis}
             analysing={analysing}

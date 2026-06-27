@@ -1,5 +1,5 @@
 // lib/matchClpTreatments.ts
-// Deterministic rules-based matcher — never uses AI.
+// Deterministic rules-based matcher - never uses AI.
 // Maps key_findings + disease_risk from the rules engine to CLP treatment entries.
 
 import { CLP_TREATMENTS, ClpTreatment } from './clpTreatments'
@@ -38,7 +38,7 @@ export function matchClpTreatments(input: MatchInput): MatchedTreatment[] {
     const triggers: string[] = []
     let score = 0
 
-    // 1 — Match against key_findings text
+    // 1 - Match against key_findings text
     for (const findingText of findingTexts) {
       const norm = normalise(findingText)
       for (const key of treatment.match_keys) {
@@ -53,7 +53,7 @@ export function matchClpTreatments(input: MatchInput): MatchedTreatment[] {
       }
     }
 
-    // 2 — Match against disease risk labels (higher risk % = higher relevance boost)
+    // 2 - Match against disease risk labels (higher risk % = higher relevance boost)
     for (const [disease, riskPct] of Object.entries(diseaseRisk)) {
       const normDisease = normalise(disease)
       for (const key of treatment.match_keys) {
@@ -68,7 +68,7 @@ export function matchClpTreatments(input: MatchInput): MatchedTreatment[] {
       }
     }
 
-    // 3 — Tier boost so urgent conditions rank higher when matched
+    // 3 - Tier boost so urgent conditions rank higher when matched
     if (triggers.length > 0) {
       if (treatment.tier === 'urgent') score += 1.5
       else if (treatment.tier === 'monitor') score += 0.75

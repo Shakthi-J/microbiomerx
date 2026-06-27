@@ -1,6 +1,6 @@
 'use client'
 // components/PageContextRegistrar.tsx
-// Re-pushes context whenever ANY prop changes — critical so the assistant
+// Re-pushes context whenever ANY prop changes - critical so the assistant
 // gets updated data after auto-analysis completes on the page.
 
 import { useEffect } from 'react'

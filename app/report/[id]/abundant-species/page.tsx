@@ -91,22 +91,22 @@ function RangeBar({ s }: { s: AbundantSpecies }) {
         </span>
       </div>
 
-      {/* Track + dot — outer div has overflow:visible so dot can poke out */}
+      {/* Track + dot - outer div has overflow:visible so dot can poke out */}
       <div className="relative" style={{ height: '10px', overflow: 'visible' }}>
 
         {/* Coloured zone track (overflow:hidden for rounded corners) */}
         <div className="absolute inset-0 rounded-full overflow-hidden">
-          {/* Low Potential zone — amber */}
+          {/* Low Potential zone - amber */}
           <div
             className="absolute top-0 h-full bg-amber-100"
             style={{ left: 0, width: `${bin1Pct}%` }}
           />
-          {/* Optimal Potential zone — pista green */}
+          {/* Optimal Potential zone - pista green */}
           <div
             className="absolute top-0 h-full bg-[#E2F3D0]"
             style={{ left: `${bin1Pct}%`, width: `${Math.max(0, bin2Pct - bin1Pct)}%` }}
           />
-          {/* Above Optimal zone — grey */}
+          {/* Above Optimal zone - grey */}
           <div
             className="absolute top-0 h-full bg-gray-100"
             style={{ left: `${bin2Pct}%`, right: 0 }}
@@ -123,7 +123,7 @@ function RangeBar({ s }: { s: AbundantSpecies }) {
           style={{ left: `${bin2Pct}%` }}
         />
 
-        {/* Dot marker — positioned on the outer div (not clipped) */}
+        {/* Dot marker - positioned on the outer div (not clipped) */}
         <div
           className="absolute w-4 h-4 rounded-full border-2 border-white shadow-sm"
           style={{
@@ -290,7 +290,7 @@ export default function AbundantSpeciesPage() {
               The 5 most abundant species in each kingdom (Bacteria, Archaea, Fungi,
               Eukaryota, Viruses). BugSpeaks classifies each into{' '}
               <strong>Low Potential</strong>, <strong>Optimal Potential</strong>, or{' '}
-              <strong>Above Optimal</strong> — high abundance isn&apos;t automatically
+              <strong>Above Optimal</strong> - high abundance isn&apos;t automatically
               beneficial; current research hasn&apos;t confirmed whether extra potential
               beyond the optimal range helps or creates imbalance.
             </p>

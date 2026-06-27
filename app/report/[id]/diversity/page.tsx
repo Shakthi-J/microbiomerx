@@ -176,7 +176,7 @@ export default function DiversityPage() {
             {kingdomEntries.map(([key, value]) => {
               const v = value as number
               const barColor = KINGDOM_COLORS[key] || '#538A22'
-              // Kingdom values are percentages — bacteria ~97%, others ~0.001–2%
+              // Kingdom values are percentages - bacteria ~97%, others ~0.001–2%
               // Use log scale feel: cap display bar at bacteria's actual value for relative comparison
               const maxVal = (kingdomEntries[0][1] as number) // largest = bacteria
               const pct = Math.min(100, (v / maxVal) * 100)

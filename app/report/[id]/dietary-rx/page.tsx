@@ -120,7 +120,7 @@ export default function DietaryRxPage() {
         </p>
         <p className="text-sm text-gray-500 leading-relaxed mb-8 max-w-md mx-auto">
           Generates species-specific food recommendations, a daily meal schedule,
-          supplements, and foods to avoid — all tied to the exact species in this report.
+          supplements, and foods to avoid - all tied to the exact species in this report.
         </p>
 
         {error && (

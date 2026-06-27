@@ -14,7 +14,7 @@ const METRICS = [
     key:          'intestinal_motility',
     label:        'Intestinal Motility',
     description:  'Gut transit and bowel movement regulation',
-    clinicalNote: 'High scores suggest over-active motility linked to loose stools, urgency or IBS-D. Below range suggests sluggish transit — bloating, constipation risk.',
+    clinicalNote: 'High scores suggest over-active motility linked to loose stools, urgency or IBS-D. Below range suggests sluggish transit - bloating, constipation risk.',
     refLow:       62.84,
     refHigh:      82.702,
     min:          0,
@@ -24,7 +24,7 @@ const METRICS = [
     key:          'mineral_bioavailability',
     label:        'Mineral Bioavailability',
     description:  'Microbial support for mineral absorption',
-    clinicalNote: 'Below range indicates reduced mineral absorption capacity — risk for deficiency states. High scores may reflect increased oxalate-degrading activity.',
+    clinicalNote: 'Below range indicates reduced mineral absorption capacity - risk for deficiency states. High scores may reflect increased oxalate-degrading activity.',
     refLow:       35.94,
     refHigh:      52.76,
     min:          0,
@@ -138,7 +138,7 @@ function MetricCard({ m }: { m: typeof METRICS[number] & { score: number; status
 
       <RangeBar score={m.score} min={m.min} max={m.max} refLow={m.refLow} refHigh={m.refHigh} status={m.status} />
 
-      {/* Clinical note — only when out of range */}
+      {/* Clinical note - only when out of range */}
       {m.status !== 'optimal' && (
         <p className="text-xs text-gray-600 mt-3 leading-relaxed border-t border-[#E2F3D0] pt-3">
           {m.clinicalNote}

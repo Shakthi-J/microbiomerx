@@ -28,7 +28,7 @@ const ENDURANCE_METRICS: EnduranceMetric[] = [
     refThreshold: 59.8,
     icon: '🏃',
     description: 'Microbial support for sustained aerobic activity via SCFA production, VO₂-related metabolite activity, and oxygen utilisation pathways.',
-    microbiomeRole: 'Key genera include Lactobacillus, Bifidobacterium, and Veillonella — which converts lactate to propionate, enhancing aerobic capacity.',
+    microbiomeRole: 'Key genera include Lactobacillus, Bifidobacterium, and Veillonella - which converts lactate to propionate, enhancing aerobic capacity.',
     trainingTip: 'Cardio performance may be suboptimal. Incorporate butyrate-producing prebiotic foods (oats, banana, legumes) and ensure adequate B-vitamin status.',
   },
   {

@@ -1,5 +1,5 @@
 // lib/aicSupplementRules.ts
-// AIC Supplement Rules Engine — v3.0.0
+// AIC Supplement Rules Engine - v3.0.0
 // Full coverage: all 60 products mapped to deterministic biomarker rules
 
 export const AIC_RULES_VERSION = 'v3.0.0'
@@ -61,7 +61,7 @@ export function runAICSupplementRules(
   products:   AICProduct[]
 ): AICRulesOutput {
 
-  // TEMP DEBUG — remove after checking keys
+  // TEMP DEBUG - remove after checking keys
   console.log('[AIC DEBUG] report_data keys:', JSON.stringify(Object.keys(reportData)))
   Object.keys(reportData).forEach(k => {
     const v = reportData[k]
@@ -224,10 +224,10 @@ const score = (key: string): number => {
   ].filter(v => score(v.key) < v.ideal)
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PHASE 1 — GUT LINING & FOUNDATION
+  // PHASE 1 - GUT LINING & FOUNDATION
   // ══════════════════════════════════════════════════════════════════════════
 
-  // 1. Colostrum Gut Revive — primary leaky gut sealer
+  // 1. Colostrum Gut Revive - primary leaky gut sealer
   if (leakyGut || gutInflam) {
     const tf: AICFinding[] = []
     if (leakyGut)  tf.push({ biomarker: 'Leaky Gut Potential',       observed_value: String(healthRisk['leaky_gut'] ?? 'Moderate'),       reference_range: 'Target: Low', severity: 'high', clinical_note: 'Compromised gut barrier' })
@@ -296,7 +296,7 @@ const score = (key: string): number => {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PHASE 2A — INFECTION CONTROL
+  // PHASE 2A - INFECTION CONTROL
   // ══════════════════════════════════════════════════════════════════════════
 
   // 8. Gut Cleanse Care
@@ -317,7 +317,7 @@ const score = (key: string): number => {
   // 9. H Pylori Care
   if (hasHPylori) {
     push(phase2Infect, 'H_PYLORI_CARE', 'critical',
-      [{ biomarker: 'Helicobacter pylori', observed_value: `${((pathogenMap['helicobacter_pylori']??0)*100).toFixed(3)}%`, reference_range: 'Should be in Safe Zone', severity: 'critical', clinical_note: 'H. pylori confirmed — specific eradication protocol required' }],
+      [{ biomarker: 'Helicobacter pylori', observed_value: `${((pathogenMap['helicobacter_pylori']??0)*100).toFixed(3)}%`, reference_range: 'Should be in Safe Zone', severity: 'critical', clinical_note: 'H. pylori confirmed - specific eradication protocol required' }],
       `H. pylori detected in this patient. Explain why H Pylori Care (Mastic Gum 650mg, Berberine, Bismuth Citrate, Zinc Carnosine) is the specific 4-ingredient eradication protocol superior to berberine alone. 2-3 sentences.`)
   }
 
@@ -363,8 +363,8 @@ const score = (key: string): number => {
   if (hasCandida) {
     needsDieOff = true
     push(phase2Infect, 'OPTI_CANDIDA', 'high',
-      [{ biomarker: 'Candida Species', observed_value: 'Elevated (Warning/Danger Zone)', reference_range: 'Safe Zone', severity: 'high', clinical_note: 'Candida overgrowth — enzyme-based cell wall disruption indicated' }],
-      `Candida overgrowth confirmed. Explain how Opti-Candida (cellulase, hemicellulase, protease) dismantles Candida's chitin cell wall through enzyme action — a different mechanism from probiotic-based Candida Care. 2 sentences.`)
+      [{ biomarker: 'Candida Species', observed_value: 'Elevated (Warning/Danger Zone)', reference_range: 'Safe Zone', severity: 'high', clinical_note: 'Candida overgrowth - enzyme-based cell wall disruption indicated' }],
+      `Candida overgrowth confirmed. Explain how Opti-Candida (cellulase, hemicellulase, protease) dismantles Candida's chitin cell wall through enzyme action - a different mechanism from probiotic-based Candida Care. 2 sentences.`)
   }
 
   // 15. Active Garlic
@@ -378,11 +378,11 @@ const score = (key: string): number => {
   if (isModHigh('systemic_inflammation') || hasResistance || abRecovLow || isModHigh('gut_inflammation')) {
     push(phase2Infect, 'OPTIZYME', 'moderate',
       [{ biomarker: 'Systemic Inflammation / Biofilm', observed_value: isModHigh('systemic_inflammation') ? String(healthRisk['systemic_inflammation']??'Moderate') : 'Present', reference_range: 'Target: Low', severity: 'moderate', clinical_note: 'Systemic enzyme therapy indicated' }],
-      `Patient shows inflammatory/biofilm markers. Explain why Optizyme (serratiopeptidase, bromelain, trypsin — taken away from food) reduces systemic inflammation, disrupts biofilm, and improves circulation. 2 sentences.`)
+      `Patient shows inflammatory/biofilm markers. Explain why Optizyme (serratiopeptidase, bromelain, trypsin - taken away from food) reduces systemic inflammation, disrupts biofilm, and improves circulation. 2 sentences.`)
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PHASE 2B — PROBIOTICS
+  // PHASE 2B - PROBIOTICS
   // ══════════════════════════════════════════════════════════════════════════
 
   // 17. S. Boulardii Care
@@ -424,11 +424,11 @@ const score = (key: string): number => {
   if (hasResistance || (bacillusAbsent && rychIndex < 40)) {
     push(phase2Probio, 'SPORE_PROBIOTIC_CARE', hasResistance?'high':'moderate',
       [{ biomarker: hasResistance?'Antibiotic Resistance':'Severely Low Rych Index + Bacillus Absence', observed_value: hasResistance?'Resistant genes detected':`Rych: ${rychIndex.toFixed(0)}, Bacillus: ABSENT`, reference_range: 'Target: No resistance / >50', severity: 'high', clinical_note: 'Acid-resistant spore probiotics needed for gastric survival' }],
-      `Patient has ${hasResistance?'antibiotic resistance genes':'severe microbiome depletion'}. Explain why Spore Probiotic Care (acid-resistant spore format) is indicated — how spore encapsulation ensures colon delivery when conventional probiotics fail. 2 sentences.`)
+      `Patient has ${hasResistance?'antibiotic resistance genes':'severe microbiome depletion'}. Explain why Spore Probiotic Care (acid-resistant spore format) is indicated - how spore encapsulation ensures colon delivery when conventional probiotics fail. 2 sentences.`)
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PHASE 2C — NUTRITIONAL SUPPORT
+  // PHASE 2C - NUTRITIONAL SUPPORT
   // ══════════════════════════════════════════════════════════════════════════
 
   // 22. Total Active B Complex
@@ -441,7 +441,7 @@ const score = (key: string): number => {
   // 23. Brain + Heart Care
   if (gabaLow || trpLow || achLow || neuroLow('serotonin')) {
     const tf: AICFinding[] = []
-    if (gabaLow)              tf.push({ biomarker: 'GABA Potential',         observed_value: score('gaba').toFixed(1),         reference_range: 'Ideal: >52.7', severity: 'high',     clinical_note: 'Low GABA — anxiety, poor sleep' })
+    if (gabaLow)              tf.push({ biomarker: 'GABA Potential',         observed_value: score('gaba').toFixed(1),         reference_range: 'Ideal: >52.7', severity: 'high',     clinical_note: 'Low GABA - anxiety, poor sleep' })
     if (trpLow)               tf.push({ biomarker: 'Tryptophan Potential',   observed_value: score('tryptophan').toFixed(1),   reference_range: 'Ideal: >40.7', severity: 'high',     clinical_note: 'Serotonin precursor deficiency' })
     if (achLow)               tf.push({ biomarker: 'Acetylcholine Potential',observed_value: score('acetylcholine').toFixed(1),reference_range: 'Ideal: >26.2', severity: 'moderate', clinical_note: 'Cognitive impact' })
     if (neuroLow('serotonin')) tf.push({ biomarker: 'Serotonin',             observed_value: 'Low',                            reference_range: 'Optimal',      severity: 'high',     clinical_note: 'Low gut serotonin production' })
@@ -462,7 +462,7 @@ const score = (key: string): number => {
     if (mineralLow)   tf.push({ biomarker: 'Mineral Bioavailability',    observed_value: score('mineral_bioavailability').toFixed(1), reference_range: 'Ideal: >35.9', severity: 'high',     clinical_note: 'Gut cannot absorb minerals properly' })
     if (enduranceLow) tf.push({ biomarker: 'Physical/Aerobic Endurance', observed_value: `${score('physical_endurance').toFixed(1)}/${score('aerobic_endurance').toFixed(1)}`, reference_range: 'Physical >46, Aerobic >59', severity: 'moderate', clinical_note: 'Low endurance correlates with zinc-magnesium depletion' })
     push(phase2Nutrit, 'ZMAG', mineralLow?'high':'moderate', tf,
-      `Patient has ${tf.map(f=>f.biomarker).join(' and ')}. Explain why ZMAG (zinc-magnesium capsules) is needed despite potential adequate dietary intake — compromised gut lining causes mineral malabsorption. 2 sentences.`)
+      `Patient has ${tf.map(f=>f.biomarker).join(' and ')}. Explain why ZMAG (zinc-magnesium capsules) is needed despite potential adequate dietary intake - compromised gut lining causes mineral malabsorption. 2 sentences.`)
   }
 
   // 26. Optimal Magnesium Care
@@ -523,7 +523,7 @@ const score = (key: string): number => {
   // 33. FMN Opti-Zinc
   if (score('vitamin_b6') < 43 || mineralLow || immuneLow) {
     push(phase2Nutrit, 'FMN_OPTI_ZINC', 'moderate',
-      [{ biomarker: mineralLow?'Mineral Bioavailability':'Immune / Zinc Depletion', observed_value: mineralLow?score('mineral_bioavailability').toFixed(1):rychIndex.toFixed(0), reference_range: mineralLow?'Ideal: >35.9':'Ideal: >50', severity: 'moderate', clinical_note: 'Zinc picolinate — highest bioavailability form' }],
+      [{ biomarker: mineralLow?'Mineral Bioavailability':'Immune / Zinc Depletion', observed_value: mineralLow?score('mineral_bioavailability').toFixed(1):rychIndex.toFixed(0), reference_range: mineralLow?'Ideal: >35.9':'Ideal: >50', severity: 'moderate', clinical_note: 'Zinc picolinate - highest bioavailability form' }],
       `Patient shows mineral/immune deficiency. Explain why FMN Opti-Zinc (zinc picolinate) has superior absorption vs zinc gluconate, and its role in immune activation, viral resistance, and gut barrier integrity. 2 sentences.`)
   }
 
@@ -577,7 +577,7 @@ const score = (key: string): number => {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PHASE 2 — DETOX
+  // PHASE 2 - DETOX
   // ══════════════════════════════════════════════════════════════════════════
 
   // 41. Opti-Glutathione Complex
@@ -632,7 +632,7 @@ const score = (key: string): number => {
   // 48. Opti-Silica
   if (isModHigh('heavy_metal_exposure') || isModHigh('skin_health')) {
     push(phase2Nutrit, 'OPTI_SILICA', 'moderate',
-      [{ biomarker: 'Heavy Metal / Skin Health', observed_value: isModHigh('heavy_metal_exposure')?String(healthRisk['heavy_metal_exposure']??'Moderate'):'Skin markers elevated', reference_range: 'Target: Low', severity: 'moderate', clinical_note: 'Bamboo silica — aluminium detox + collagen support' }],
+      [{ biomarker: 'Heavy Metal / Skin Health', observed_value: isModHigh('heavy_metal_exposure')?String(healthRisk['heavy_metal_exposure']??'Moderate'):'Skin markers elevated', reference_range: 'Target: Low', severity: 'moderate', clinical_note: 'Bamboo silica - aluminium detox + collagen support' }],
       `Patient has heavy metal/skin concerns. Explain how Opti-Silica (bamboo extract 70% silica) supports aluminium detoxification, collagen formation, and hair/skin/nail health. 2 sentences.`)
   }
 
@@ -651,7 +651,7 @@ const score = (key: string): number => {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PHASE 3 — ENZYMES + MAINTENANCE
+  // PHASE 3 - ENZYMES + MAINTENANCE
   // ══════════════════════════════════════════════════════════════════════════
 
   // 51. Digest All Care
@@ -702,7 +702,7 @@ const score = (key: string): number => {
   // 57. Eczema Care
   if (hasCandida || isModHigh('skin_health') || diseaseOver('eczema', 10)) {
     push(phase3, 'ECZEMA_CARE', hasCandida?'high':'moderate',
-      [{ biomarker: hasCandida?'Candida Species':'Skin Health / Eczema Risk', observed_value: hasCandida?'Elevated':`Eczema risk: ${(diseaseRisk['eczema']??0).toFixed(1)}%`, reference_range: 'Safe Zone / Target: Low', severity: hasCandida?'high':'moderate', clinical_note: 'Cellulase enzymes digest Candida cell wall — systemic + topical benefit' }],
+      [{ biomarker: hasCandida?'Candida Species':'Skin Health / Eczema Risk', observed_value: hasCandida?'Elevated':`Eczema risk: ${(diseaseRisk['eczema']??0).toFixed(1)}%`, reference_range: 'Safe Zone / Target: Low', severity: hasCandida?'high':'moderate', clinical_note: 'Cellulase enzymes digest Candida cell wall - systemic + topical benefit' }],
       `Patient has ${hasCandida?'Candida overgrowth':'eczema/skin markers'}. Explain how Eczema Care (cellulase, hemicellulase + probiotics) taken empty stomach provides systemic anti-candida action manifesting as skin clearance. 2 sentences.`)
   }
 
@@ -716,7 +716,7 @@ const score = (key: string): number => {
   // 59. Detoxamin EDTA Suppository
   if (isHigh('heavy_metal_exposure')) {
     push(phase3, 'DETOXAMIN_EDTA', 'high',
-      [{ biomarker: 'Severe Heavy Metal Toxicity', observed_value: String(healthRisk['heavy_metal_exposure']??'High'), reference_range: 'Target: Low', severity: 'high', clinical_note: 'Rectal EDTA — highest bioavailability chelation route' }],
+      [{ biomarker: 'Severe Heavy Metal Toxicity', observed_value: String(healthRisk['heavy_metal_exposure']??'High'), reference_range: 'Target: Low', severity: 'high', clinical_note: 'Rectal EDTA - highest bioavailability chelation route' }],
       `Patient has severe heavy metal toxicity. Explain why Detoxamin EDTA Suppository (rectal delivery) achieves higher EDTA bioavailability than oral routes and is reserved for significant heavy metal burden under clinical supervision. 2 sentences.`)
   }
 
@@ -731,11 +731,11 @@ const score = (key: string): number => {
   // WARNINGS
   // ══════════════════════════════════════════════════════════════════════════
 
-  if (needsDieOff)           warnings.push('⚠️ Die-off Warning: Before starting infection control (Week 3), prepare die-off remedies — rotate: boiled ginger water, fennel seed water, Eno on empty stomach, activated charcoal (2+ hours away from supplements). If severe flare: reduce to half dose for 2–3 days then resume.')
+  if (needsDieOff)           warnings.push('⚠️ Die-off Warning: Before starting infection control (Week 3), prepare die-off remedies - rotate: boiled ginger water, fennel seed water, Eno on empty stomach, activated charcoal (2+ hours away from supplements). If severe flare: reduce to half dose for 2–3 days then resume.')
   if (needsInfectionControl) warnings.push('⚠️ Never run two antimicrobials simultaneously. Each antimicrobial = 1 month only, then rotate. Never use same antimicrobial >1 month continuously.')
   if (leakyGut || gutInflam) warnings.push('⚠️ Gut lining FIRST: Do NOT start infection control until Phase 1 (Colostrum Gut Revive + Leaky Gut Care) has been completed for at least 2 weeks.')
   warnings.push('ℹ️ Colostrum Gut Revive contains bovine colostrum. Standard Digest All Care and Pancreatic Multi-enzyme contain Ox Bile. Always confirm dietary preference and prescribe veg variants where needed.')
-  warnings.push('⚠️ Toxin Cleanse and Activated Charcoal must ALWAYS be taken 2+ hours away from all other supplements and medications — they will bind and inactivate them.')
+  warnings.push('⚠️ Toxin Cleanse and Activated Charcoal must ALWAYS be taken 2+ hours away from all other supplements and medications - they will bind and inactivate them.')
 
   // ── Probiotic schedule ─────────────────────────────────────────────────────
 

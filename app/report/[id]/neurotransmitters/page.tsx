@@ -33,27 +33,27 @@ const NT_META: Omit<NTEntry, 'value'>[] = [
     clinical_note: 'Low GABA linked to anxiety, poor sleep, heightened stress response' },
   // Monoamines
   { key: 'serotonin',     label: 'Serotonin',       low: 46.34, high: 66.26, group: 'monoamines',
-    role: 'Mood, sleep, appetite — 90% produced in the gut',
+    role: 'Mood, sleep, appetite - 90% produced in the gut',
     clinical_note: 'Low serotonin potential; correlates with mood dysregulation' },
   { key: 'dopamine',      label: 'Dopamine',         low: 48.54, high: 62.288, group: 'monoamines',
     role: 'Reward, motivation, motor control, cognition' },
   { key: 'norepinephrine',label: 'Norepinephrine',   low: 18.63, high: 28.878, group: 'monoamines',
     role: 'Stress response, alertness, cardiovascular regulation',
-    clinical_note: 'Very low — may contribute to fatigue and poor stress adaptation' },
+    clinical_note: 'Very low - may contribute to fatigue and poor stress adaptation' },
   { key: 'epinephrine',   label: 'Epinephrine',      low: 26.33, high: 38.85, group: 'monoamines',
     role: 'Fight-or-flight response, energy mobilisation',
     clinical_note: 'Below reference range; reduced adrenal signalling potential' },
   // Excitatory
   { key: 'glutamate',     label: 'Glutamate',        low: 58.31, high: 73.368, group: 'excitatory',
     role: 'Primary excitatory neurotransmitter; learning and memory',
-    clinical_note: 'Below optimal — may impact cognitive sharpness' },
+    clinical_note: 'Below optimal - may impact cognitive sharpness' },
   { key: 'acetylcholine', label: 'Acetylcholine',    low: 26.2,  high: 37.98, group: 'excitatory',
     role: 'Memory, attention, neuromuscular junction',
-    clinical_note: 'Low — relevant to cognitive function and muscle coordination' },
+    clinical_note: 'Low - relevant to cognitive function and muscle coordination' },
   // Precursors
   { key: 'tryptophan',    label: 'Tryptophan',       low: 40.71, high: 90.71, group: 'precursors',
     role: 'Serotonin & melatonin precursor; sleep and mood upstream',
-    clinical_note: '⚠ Score 0.0 — critically absent; major upstream deficit for serotonin & melatonin' },
+    clinical_note: '⚠ Score 0.0 - critically absent; major upstream deficit for serotonin & melatonin' },
   { key: 'tryptamine',    label: 'Tryptamine',       low: 20.18, high: 33.34, group: 'precursors',
     role: 'Tryptophan metabolite; gut–brain signalling' },
   // Histamine
@@ -268,14 +268,14 @@ export default function NeurotransmittersPage() {
             )
           })}
 
-          {/* Critical alert — tryptophan */}
+          {/* Critical alert - tryptophan */}
           {nt?.tryptophan === 0 && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-8">
               <p className="text-xs font-mono text-red-600 uppercase tracking-widest mb-2">
                 ⚠ Critical Finding
               </p>
               <p className="text-sm text-red-800 leading-relaxed">
-                <span className="font-medium">Tryptophan score is 0.0</span> — the microbiome is producing
+                <span className="font-medium">Tryptophan score is 0.0</span> - the microbiome is producing
                 essentially no tryptophan. As the upstream precursor for both serotonin and melatonin, this
                 directly explains the low serotonin potential and may impact mood, sleep quality, and gut-brain
                 signalling. Dietary tryptophan sources (turkey, eggs, pumpkin seeds, tofu) and targeted prebiotic
@@ -288,7 +288,7 @@ export default function NeurotransmittersPage() {
           {lowCount > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-8">
               <p className="text-xs font-mono text-amber-600 uppercase tracking-widest mb-3">
-                Low neurotransmitters — {lowCount} deficient
+                Low neurotransmitters - {lowCount} deficient
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {ntRows

@@ -1,6 +1,6 @@
 /**
  * app/api/recommendations/route.ts
- * Single engine — KB tables drive all recommendations
+ * Single engine - KB tables drive all recommendations
  */
 
 import { createServerClient } from '@supabase/ssr'
@@ -25,7 +25,7 @@ async function createSupabase() {
   )
 }
 
-// ── GET — Load saved output ───────────────────────────────────────
+// ── GET - Load saved output ───────────────────────────────────────
 export async function GET(req: NextRequest) {
   const supabase = await createSupabase()
   const { data: { session } } = await supabase.auth.getSession()
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   })
 }
 
-// ── POST — Run KB engine, save output ────────────────────────────
+// ── POST - Run KB engine, save output ────────────────────────────
 export async function POST(req: NextRequest) {
   const supabase = await createSupabase()
   const { data: { session } } = await supabase.auth.getSession()
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
   const reportData = report.report_data as Record<string, unknown>
   if (!reportData) {
-    return NextResponse.json({ error: 'report_data is empty — parse the report first' }, { status: 400 })
+    return NextResponse.json({ error: 'report_data is empty - parse the report first' }, { status: 400 })
   }
 
   const rulesOutput = await runRulesEngineV2(supabase, reportData)
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
           { onConflict: 'patient_id,report_id,metric' }
         )
     } catch {
-      // non-critical — metrics save failure doesn't block recommendations
+      // non-critical - metrics save failure doesn't block recommendations
     }
   }
 

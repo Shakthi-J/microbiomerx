@@ -1,6 +1,6 @@
 'use client'
 // components/PdfViewerPanel.tsx
-// Fixed left PDF panel — report content and assistant sit to the right.
+// Fixed left PDF panel - report content and assistant sit to the right.
 // Text selection inside the panel shows an "Ask Assistant →" popup.
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'

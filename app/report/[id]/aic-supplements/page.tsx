@@ -37,9 +37,9 @@ function PriorityBadge({ priority }: { priority: AICRecommendation['priority'] }
 
 function PhaseBadge({ phase }: { phase: 1 | 2 | 3 }) {
   const labels: Record<number, string> = {
-    1: 'Phase 1 — Restoration',
-    2: 'Phase 2 — Rebuilding',
-    3: 'Phase 3 — Maintenance',
+    1: 'Phase 1 - Restoration',
+    2: 'Phase 2 - Rebuilding',
+    3: 'Phase 3 - Maintenance',
   }
   const colors: Record<number, string> = {
     1: 'bg-blue-50 text-blue-600 border-blue-200',
@@ -99,7 +99,7 @@ function RecommendationCard({ rec }: { rec: AICRecommendation }) {
               }`} />
               <div className="min-w-0">
                 <span className="font-medium text-gray-700">{f.biomarker}</span>
-                <span className="text-gray-400 mx-1">—</span>
+                <span className="text-gray-400 mx-1">-</span>
                 <span className="text-gray-500">{String(f.observed_value)}</span>
                 <span className="text-gray-300 mx-1">vs</span>
                 <span className="text-gray-400">{f.reference_range}</span>
@@ -460,14 +460,14 @@ export default function AICSupplementsPage() {
             <Warnings warnings={output.clinical_warnings} />
 
             <PhaseSection
-              title="Phase 1 — Gut Restoration"
+              title="Phase 1 - Gut Restoration"
               subtitle="Weeks 1–2: Seal the gut lining before any infection control. Complete this phase fully before moving to Phase 2."
               color="bg-blue-100 text-blue-700 border border-blue-200"
               recs={output.phase1}
             />
 
             <PhaseSection
-              title="Phase 2A — Infection Control"
+              title="Phase 2A - Infection Control"
               subtitle="Weeks 3–10: Rotate antimicrobials monthly. Never run two simultaneously."
               color="bg-red-50 text-red-700 border border-red-200"
               recs={output.phase2_infection_control}
@@ -477,7 +477,7 @@ export default function AICSupplementsPage() {
             />
 
             <PhaseSection
-              title="Phase 2B — Probiotic Rebuilding"
+              title="Phase 2B - Probiotic Rebuilding"
               subtitle="Weeks 3–10: Alternate probiotic strains nightly. Never give the same product two nights in a row."
               color="bg-[#E2F3D0] text-[#3D6B16] border border-[#C8E9A8]"
               recs={output.phase2_probiotics}
@@ -485,14 +485,14 @@ export default function AICSupplementsPage() {
             />
 
             <PhaseSection
-              title="Phase 2C — Nutritional Support"
+              title="Phase 2C - Nutritional Support"
               subtitle="Weeks 3–10: Address vitamin, mineral, and neurotransmitter deficiencies concurrently."
               color="bg-purple-50 text-purple-700 border border-purple-200"
               recs={output.phase2_nutrition}
             />
 
             <PhaseSection
-              title="Phase 3 — Maintenance"
+              title="Phase 3 - Maintenance"
               subtitle="Weeks 11–12: Enzyme support once gut lining is healed. Continue core probiotics and nutrients."
               color="bg-gray-100 text-gray-600 border border-gray-200"
               recs={output.phase3}

@@ -32,7 +32,7 @@ function getRychColor(score: number | null | undefined) {
 }
 
 function getRychLabel(score: number | null | undefined) {
-  if (score == null) return '—'
+  if (score == null) return '-'
   if (score >= 70)   return 'Good'
   if (score >= 45)   return 'Moderate'
   return 'Poor'
@@ -63,7 +63,7 @@ function RychBar({ score }: { score: number | null | undefined }) {
       </div>
       <span className="text-xs font-semibold tabular-nums w-7 text-right"
         style={{ color }}>
-        {score != null ? score : '—'}
+        {score != null ? score : '-'}
       </span>
     </div>
   )
@@ -75,7 +75,7 @@ function StatusPill({ score }: { score: number | null | undefined }) {
     'Good':     'bg-[#E2F3D0] text-[#3D6B16] border-[#C8E9A8]',
     'Moderate': 'bg-amber-50   text-amber-700  border-amber-200',
     'Poor':     'bg-red-50     text-red-700    border-red-200',
-    '—':        'bg-gray-50    text-gray-400   border-gray-200',
+    '-':        'bg-gray-50    text-gray-400   border-gray-200',
   }
   return (
     <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold
@@ -128,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen" style={{ background: '#F8FAF6', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
-      {/* ── Sign out button — fixed top-right corner ── */}
+      {/* ── Sign out button - fixed top-right corner ── */}
       <div className="fixed top-4 right-5 z-50 flex items-center gap-2">
         {userEmail && (
           <span className="text-[11px] text-gray-400 font-mono hidden sm:block">
@@ -365,7 +365,7 @@ function DashboardContent({ reports, loading }: { reports: Report[]; loading: bo
                   {/* Age/sex */}
                   <td className="px-5 py-3.5">
                     <span className="text-[12px] text-gray-500 font-mono">
-                      {report.patient_age_sex ?? '—'}
+                      {report.patient_age_sex ?? '-'}
                     </span>
                   </td>
 
@@ -380,7 +380,7 @@ function DashboardContent({ reports, loading }: { reports: Report[]; loading: bo
                     <div className="text-[12px] text-gray-500">
                       {shannon != null
                         ? <span>Shannon <span className="font-mono text-[#538A22]">{shannon.toFixed(2)}</span></span>
-                        : <span className="text-gray-300">—</span>}
+                        : <span className="text-gray-300">-</span>}
                     </div>
                     {absent > 0 && (
                       <div className="text-[10px] text-red-400 mt-0.5">
@@ -400,7 +400,7 @@ function DashboardContent({ reports, loading }: { reports: Report[]; loading: bo
                   <td className="px-5 py-3.5 max-w-[140px]">
                     <span className="text-[11px] text-gray-400 truncate block font-mono"
                       title={report.pdf_filename ?? ''}>
-                      {report.pdf_filename ?? '—'}
+                      {report.pdf_filename ?? '-'}
                     </span>
                   </td>
 

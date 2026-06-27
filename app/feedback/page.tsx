@@ -1,6 +1,6 @@
 'use client'
 // app/feedback/page.tsx
-// Shared feedback board — all submitted doctor feedback visible to everyone.
+// Shared feedback board - all submitted doctor feedback visible to everyone.
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -93,7 +93,7 @@ export default function FeedbackPage() {
           <div>
             <h1 className="text-sm font-semibold text-[#1A3207]">Feedback Board</h1>
             <p className="text-[10px] font-mono text-gray-400 mt-0.5">
-              Suggestions and ideas from the team — {rows.length} total
+              Suggestions and ideas from the team - {rows.length} total
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 /**
  * extractSpecies.ts
  *
- * Dynamic species extraction — no KNOWN_GENERA hardcoded list.
+ * Dynamic species extraction - no KNOWN_GENERA hardcoded list.
  * Detects any scientific name (Genus species) from PDF text using
  * biological suffix patterns to filter out English false positives.
  */
@@ -82,7 +82,7 @@ export type PDFExtractResult = {
   rawText: string
 }
 
-// ─── Common words that look like species epithets — used to filter false ──────
+// ─── Common words that look like species epithets - used to filter false ──────
 // positives when scanning raw PDF text for scientific names.
 const COMMON_WORDS = new Set([
   'the','and','for','are','with','from','this','that','have','been','were',
@@ -242,7 +242,7 @@ function buildPatientForm(data: ReportData | null): ExtractedPatient {
 export async function extractFromPDF(file: File): Promise<PDFExtractResult> {
   const { fullText, pages } = await getPDFData(file)
 
-  // Dynamic species extraction — no KNOWN_GENERA list
+  // Dynamic species extraction - no KNOWN_GENERA list
   const speciesFromText = extractSpeciesFromText(fullText)
 
   const [nutritionData, reportDataRaw] = await Promise.all([

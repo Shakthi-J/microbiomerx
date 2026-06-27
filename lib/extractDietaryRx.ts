@@ -2,7 +2,7 @@
  * lib/extractDietaryRx.ts
  *
  * Dynamically extracts the 3-phase dietary frequency table from ANY
- * BugSpeaks gut microbiome PDF — works for every patient report.
+ * BugSpeaks gut microbiome PDF - works for every patient report.
  *
  * ── WHY THE OLD APPROACH FAILED ──────────────────────────────────
  * The frequency dots in BugSpeaks nutrition pages are coloured SVG/PDF
@@ -57,7 +57,7 @@ export interface DietaryCategory {
 // ─────────────────────────────────────────────────────────────────
 // BugSpeaks page layout constants
 // All values are in pdfjs-dist "user space" units (points).
-// Measured from the Dr Shammi report — consistent across all BugSpeaks reports.
+// Measured from the Dr Shammi report - consistent across all BugSpeaks reports.
 // ─────────────────────────────────────────────────────────────────
 
 // X-ranges for the two column groups on a nutrition page
@@ -176,7 +176,7 @@ export function sliceDietarySection(text: string): string {
   }
 
 // ─────────────────────────────────────────────────────────────────
-// PRIMARY EXTRACTOR — operator list (works on any BugSpeaks PDF)
+// PRIMARY EXTRACTOR - operator list (works on any BugSpeaks PDF)
 //
 // Input: pdfjs-dist page objects for the nutrition pages
 // Each page needs:
@@ -194,7 +194,7 @@ interface PDFWord {
 interface PDFPageData {
   text: string
   words: PDFWord[]
-  // pdfjs OPS operator list — optional, used for dot colour extraction
+  // pdfjs OPS operator list - optional, used for dot colour extraction
   operatorList?: {
     fnArray: number[]
     argsArray: (number[] | null)[]
@@ -230,7 +230,7 @@ function extractDotsFromOperatorList(
   const OPS_rectangle          = 67
   const OPS_fill               = 14
   const OPS_fillStroke         = 16
-  const OPS_transform          = 12   // cm operator — sets current matrix
+  const OPS_transform          = 12   // cm operator - sets current matrix
 
   let currentColour: RGB | null = null
   let currentMatrix: number[] = [1, 0, 0, 1, 0, 0]
@@ -249,7 +249,7 @@ function extractDotsFromOperatorList(
       continue
     }
 
-    // A drawing op after a colour set — record dot position
+    // A drawing op after a colour set - record dot position
     if (
       currentColour &&
       (op === OPS_paintImageMask || op === OPS_paintInlineImageXO ||
@@ -416,7 +416,7 @@ export function extractDietaryFromOperatorList(
 }
 
 // ─────────────────────────────────────────────────────────────────
-// FALLBACK EXTRACTOR — Groq 70b from raw text
+// FALLBACK EXTRACTOR - Groq 70b from raw text
 // Used when operator list fails (scanned PDFs, stripped operators)
 // ─────────────────────────────────────────────────────────────────
 
@@ -434,11 +434,11 @@ The PDF has a "NUTRITIONAL REPORT" section with food tables. Each food has 3 dot
 Categories: Greens & Vegetables, Fruits, Pulses & Legumes, Cereals, Fats & Oils, Herbs & Condiments, Egg & Meat, Dietary Supplements, Nuts & Seed Oils, Drinks & Beverages, Milk & Fermented Products.
 
 RULES:
-1. Extract EVERY food item listed — do not skip any.
+1. Extract EVERY food item listed - do not skip any.
 2. freqs array: EXACTLY 3 elements [phase1, phase2, phase3].
 3. Only use: "daily", "alt", "3day", "avoid".
 4. Food names in UPPERCASE.
-5. Return ONLY valid JSON array — no markdown, no preamble.
+5. Return ONLY valid JSON array - no markdown, no preamble.
 
 Format:
 [{ "category": "Greens & Vegetables", "items": [{ "name": "AMARANTH", "freqs": ["3day","3day","alt"] }] }]`
@@ -479,7 +479,7 @@ export async function extractDietaryViaGroq(
 }
 
 // ─────────────────────────────────────────────────────────────────
-// VALIDATE & SANITISE — used by both extractors + API route
+// VALIDATE & SANITISE - used by both extractors + API route
 // ─────────────────────────────────────────────────────────────────
 const VALID_FREQS = new Set<FreqCode>(['daily', 'alt', '3day', 'avoid'])
 

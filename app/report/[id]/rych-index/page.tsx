@@ -1,5 +1,5 @@
 'use client'
-// app/report/[id]/rych-index/page.tsx — redesigned
+// app/report/[id]/rych-index/page.tsx - redesigned
 
 import { useMemo } from 'react'
 import { useParams } from 'next/navigation'
@@ -93,7 +93,7 @@ function ScoreHero({ score }: { score: number }) {
         {cfg.label}
       </span>
 
-      {/* Spectrum bar + needle — the signature element */}
+      {/* Spectrum bar + needle - the signature element */}
       <div className="w-52 mt-1">
         <div className="relative h-2.5 rounded-full overflow-visible"
           style={{ background: cfg.gradient }}>
@@ -269,19 +269,19 @@ export default function RychIndexPage() {
               <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <MetricCard
                   label="Shannon Diversity"
-                  value={rd?.diversity?.shannon ?? '—'}
+                  value={rd?.diversity?.shannon ?? '-'}
                   sub="Microbial richness score"
                   accent="#3D7A15"
                 />
                 <MetricCard
                   label="Species Count"
-                  value={rd?.species_list?.length ?? '—'}
+                  value={rd?.species_list?.length ?? '-'}
                   sub="Identified species"
                   accent="#538A22"
                 />
                 <MetricCard
                   label="Antibiotic Recovery"
-                  value={rd?.antibiotic_recovery ?? '—'}
+                  value={rd?.antibiotic_recovery ?? '-'}
                   sub="Recovery index"
                   accent={
                     typeof rd?.antibiotic_recovery === 'number' && rd.antibiotic_recovery > 60
@@ -313,7 +313,7 @@ export default function RychIndexPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 italic">No risk data — re-upload PDF</p>
+                <p className="text-xs text-gray-400 italic">No risk data - re-upload PDF</p>
               )}
             </Link>
 
@@ -338,7 +338,7 @@ export default function RychIndexPage() {
                     ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 italic">No data — re-upload PDF</p>
+                <p className="text-xs text-gray-400 italic">No data - re-upload PDF</p>
               )}
             </Link>
           </div>

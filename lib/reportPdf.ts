@@ -12,7 +12,7 @@ export function reportPdfDownloadPaths(reportId: string, pdfFilename?: string | 
   return paths
 }
 
-/** Upload a PDF via the server API (uses service role — bypasses storage RLS). */
+/** Upload a PDF via the server API (uses service role - bypasses storage RLS). */
 export async function uploadReportPdf(reportId: string, file: File) {
   const formData = new FormData()
   formData.append('file', file)

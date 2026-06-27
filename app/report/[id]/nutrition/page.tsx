@@ -213,7 +213,7 @@ export default function NutritionPage() {
 
       <div className="flex h-[calc(100vh-73px)]">
 
-        {/* ── Left sidebar — category list ── */}
+        {/* ── Left sidebar - category list ── */}
         <aside className="w-56 shrink-0 bg-white border-r border-[var(--pista-100)] overflow-y-auto py-3">
           {categories.map(cat => {
             const items   = nutrition![cat]
@@ -295,7 +295,7 @@ export default function NutritionPage() {
                 </div>
               </div>
 
-              {/* Food grid — grouped by freq */}
+              {/* Food grid - grouped by freq */}
               <div className="p-6 space-y-6">
                 {(['daily', 'alt', '3day', 'avoid'] as FreqCode[]).map(freq => {
                   const foods = grouped[freq]

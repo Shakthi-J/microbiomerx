@@ -16,11 +16,11 @@ const INDICATORS = [
 ]
 
 const CLINICAL_NOTES: Record<string, string> = {
-  leaky_gut: 'Elevated intestinal permeability — consider gut barrier support interventions',
-  gut_inflammation: 'Elevated inflammatory markers — consider anti-inflammatory dietary protocol',
-  fatigue: 'High fatigue propensity — consider energy metabolism and mitochondrial support',
-  tmao: 'Elevated TMAO — consider reducing red meat and egg yolks, review cardiovascular risk',
-  microplastic: 'Elevated microplastic exposure indicator — consider reducing plastic food packaging',
+  leaky_gut: 'Elevated intestinal permeability - consider gut barrier support interventions',
+  gut_inflammation: 'Elevated inflammatory markers - consider anti-inflammatory dietary protocol',
+  fatigue: 'High fatigue propensity - consider energy metabolism and mitochondrial support',
+  tmao: 'Elevated TMAO - consider reducing red meat and egg yolks, review cardiovascular risk',
+  microplastic: 'Elevated microplastic exposure indicator - consider reducing plastic food packaging',
 }
 
 function getStatus(value: number, low: number, high: number): 'low' | 'normal' | 'high' {

@@ -271,7 +271,7 @@ export default function RecommendationsPanel({ reportId, reportData, patient, ex
         {tab === 'supplements' && (
           <div className="space-y-4">
             <p className="text-xs text-gray-400 font-mono border-l-2 border-amber-300 pl-3 py-1">
-              Suggestions for clinical consideration only. No doses provided — physician judgment, patient age, medications, and comorbidities must be assessed.
+              Suggestions for clinical consideration only. No doses provided - physician judgment, patient age, medications, and comorbidities must be assessed.
             </p>
             {recs.supplement_suggestions?.length === 0 && <p className="text-sm text-gray-400 text-center py-8 font-mono">No supplement suggestions triggered</p>}
             {recs.supplement_suggestions?.map((s: any, i: number) => (
@@ -383,7 +383,7 @@ export default function RecommendationsPanel({ reportId, reportData, patient, ex
                 <span className="text-white text-xs font-bold">CLP</span>
               </div>
               <div>
-                <div className="text-xs font-medium text-[#1A3207]">Clinic Living Plus — Gut Management Programme</div>
+                <div className="text-xs font-medium text-[#1A3207]">Clinic Living Plus - Gut Management Programme</div>
                 <div className="text-xs text-[#538A22] font-mono">Treatments matched to this patient's microbiome report</div>
               </div>
             </div>
@@ -464,7 +464,7 @@ export default function RecommendationsPanel({ reportId, reportData, patient, ex
         {tab === 'clinical' && (
           <div className="space-y-4">
             <p className="text-xs text-gray-400 font-mono border-l-2 border-blue-300 pl-3 py-1">
-              Clinical decision support — physician use only. All language is observational and advisory. Clinical judgment and patient context apply.
+              Clinical decision support - physician use only. All language is observational and advisory. Clinical judgment and patient context apply.
             </p>
             {recs.clinical_notes?.length === 0 && <p className="text-sm text-gray-400 text-center py-8 font-mono">No clinical notes generated</p>}
             {recs.clinical_notes?.map((note: any, i: number) => (

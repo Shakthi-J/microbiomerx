@@ -26,7 +26,7 @@ function getRiskLevel(value: number, threshold: number): 'high' | 'moderate' | '
 
 // ─── Risk bar row ─────────────────────────────────────────────────────────────
 // Layout: [label 35%] [bar track 40%] [value + badge 25%]
-// Bar track is explicitly constrained — never spans full card width.
+// Bar track is explicitly constrained - never spans full card width.
 function RiskBarRow({
   label,
   value,
