@@ -45,6 +45,21 @@ function groupByPhase(items: MS[]) {
   return r
 }
 
+// ADD after groupByPhase function:
+function groupDietaryByPhase(items: MS[]) {
+  const g: Record<string,MS[]> = {}
+  for (const i of items) {
+    const match=(i.phase||'').match(/Phase\s*\d+(\+\d+)?/i)
+    const base=match?match[0]:(i.phase||'Other')
+    if(!g[base])g[base]=[]
+    g[base].push(i)
+  }
+  const r: {phase:string;items:MS[]}[] = []
+  for (const p of PHASE_ORDER) if(g[p]?.length) r.push({phase:p,items:g[p]})
+  for (const k of Object.keys(g)) if(!PHASE_ORDER.includes(k)) r.push({phase:k,items:g[k]})
+  return r
+}
+
 function mergeByAic(items: Section[]): MS[] {
   const g: Record<string,Section[]> = {}; const o: string[] = []
   for (const i of items) {
@@ -472,15 +487,26 @@ export default function PrescriptionPrintPage() {
 
                 {dietary.length>0&&(
                   <div className="ds">
-                    <div className="dh">🥗 Dietary Protocol</div>
-                    {dietary.map(item=>(
-                      <div key={item.key} className="di">
-                        <span className="dn">{item.label}</span>
-                        {item.detail&&<span style={{color:'#555'}}> - {item.detail}</span>}
-                        {item.rationale&&<div className="dr">{item.rationale}</div>}
-                        {item.doctorNote&&<div style={{fontSize:10,color:'#538A22',marginTop:2}}>📝 {item.doctorNote}</div>}
-                      </div>
-                    ))}
+                    {groupDietaryByPhase(dietary as MS[]).map(({phase,items})=>{
+                      const c=PHASE_STYLE[phase]??{bg:'#F2F9EC',text:'#538A22',border:'#C8E9A8'}
+                      return(
+                        <div key={phase}>
+                          <div className="rxpd" style={{margin:'8px 0 4px'}}>
+                            <div className="rxpl"/>
+                            <div className="rxpb" style={{background:c.bg,color:c.text,border:`1px solid ${c.border}`}}>{phase}</div>
+                            <div className="rxpl"/>
+                          </div>
+                          {items.map(item=>(
+                            <div key={item.key} className="di">
+                              <span className="dn">{item.label}</span>
+                              {item.detail&&<span style={{color:'#555'}}> - {item.detail}</span>}
+                              {item.rationale&&<div className="dr">{item.rationale}</div>}
+                              {item.doctorNote&&<div style={{fontSize:10,color:'#538A22',marginTop:2}}>📝 {item.doctorNote}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 

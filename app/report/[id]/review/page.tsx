@@ -57,6 +57,25 @@ function groupByPhase(items: EditableItem[]) {
   return result
 }
 
+// ADD after the closing brace of groupByPhase:
+function groupDietaryByPhase(items: EditableItem[]) {
+  const groups: Record<string, EditableItem[]> = {}
+  for (const item of items) {
+    const match = (item.phase || '').match(/Phase\s*\d+(\+\d+)?/i)
+    const basePhase = match ? match[0] : (item.phase || 'Other')
+    if (!groups[basePhase]) groups[basePhase] = []
+    groups[basePhase].push(item)
+  }
+  const result: { phase: string; items: EditableItem[] }[] = []
+  for (const p of PHASE_ORDER) {
+    if (groups[p]?.length) result.push({ phase: p, items: groups[p] })
+  }
+  for (const k of Object.keys(groups)) {
+    if (!PHASE_ORDER.includes(k)) result.push({ phase: k, items: groups[k] })
+  }
+  return result
+}
+
 function PhaseDivider({ phase }: { phase: string }) {
   const c = PHASE_STYLE[phase] ?? { bg: '#F2F9EC', text: '#538A22', border: '#C8E9A8' }
   return (
@@ -817,20 +836,26 @@ export default function DoctorReviewPage() {
           <Section title="Dietary Protocol" icon="🥗" count={activeDietary.length} onAddItem={() => addItem('dietary')} disabled={!isEditable}>
             {sections.dietary.length === 0
               ? <p className="text-xs text-slate-400 italic text-center py-4">No dietary protocols generated.</p>
-              : sections.dietary.map(item => (
-                <ItemCard
-                  key={item.key}
-                  item={item}
-                  isFlashing={flashKey === item.key}
-                  onToggle={key => toggleItem('dietary', key)}
-                  onNoteChange={(key, note) => updateNote('dietary', key, note)}
-                  onDetailChange={(key, detail) => updateDetail('dietary', key, detail)}
-                  onLabelChange={(key, val) => updateLabel('dietary', key, val)}
-                  onConfirmNew={key => confirmNewItem('dietary', key)}
-                  onDiscard={key => discardItem('dietary', key)}
-                  disabled={!isEditable}
-                />
-              ))
+              : groupDietaryByPhase(sections.dietary).map(({ phase, items }) => (
+                <div key={phase}>
+                  <PhaseDivider phase={phase} />
+                  {items.map(item => (
+                    <div key={item.key} className="mb-3">
+                      <ItemCard
+                        item={item}
+                        isFlashing={flashKey === item.key}
+                        onToggle={key => toggleItem('dietary', key)}
+                        onNoteChange={(key, note) => updateNote('dietary', key, note)}
+                        onDetailChange={(key, detail) => updateDetail('dietary', key, detail)}
+                        onLabelChange={(key, val) => updateLabel('dietary', key, val)}
+                        onConfirmNew={key => confirmNewItem('dietary', key)}
+                        onDiscard={key => discardItem('dietary', key)}
+                        disabled={!isEditable}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )) 
             }
           </Section>
         </div>
