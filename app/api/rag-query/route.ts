@@ -8,6 +8,10 @@ const SUPABASE_KEY = (process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_S
 
 const PAGE_TRIGGERS = ['this page','the page','look at','what does this','what about this','tell me about this','this section','these numbers','these values','this score','this patient','what it tells','interpret','explain this','what does it mean','is this','are these','this data','properly','what can you see','read this','analyse this','analyze this']
 const KB_TRIGGERS   = ['supplement','supplements','recommend','recommendation','what to give','which product','aic','therapy','therapies','dietary','diet plan','protocol','treatment plan','what can be given','dose','dosage','phase 1','phase 2','phase 3','what should i prescribe','prescription','what supplement','plan for this','treatment for','what do i give']
+// ADD after KB_TRIGGERS:
+const FILTER_TRIGGERS = ['filter', 'narrow down', 'reduce', 'prioritise', 'prioritize', 'which ones', 'top supplements', 'most important', 'cut down', 'allergy', 'avoid', 'remove', 'skip', 'not suitable']
+
+const isFilterQuery = (t: string) => FILTER_TRIGGERS.some(w => t.toLowerCase().includes(w))
 
 const isPageQuery = (t: string) => PAGE_TRIGGERS.some(w => t.toLowerCase().includes(w))
 const isKbQuery   = (t: string) => KB_TRIGGERS.some(w => t.toLowerCase().includes(w))
@@ -279,9 +283,10 @@ export async function POST(req: NextRequest) {
       : ''
     const pageCtx = page_context ? buildPageDataContext(page_context) : ''
 
-    // ── For supplement/KB queries: return KB answer directly (no LLM hallucination) ──
-    if (kbTrig && aicContext && aicContext.includes('===')) {
-      // Extract the pre-formatted supplement list and return it directly
+    const filterTrig = isFilterQuery(last)
+
+    if (kbTrig && aicContext && aicContext.includes('===') && !filterTrig) {
+      // Direct answer for generic supplement queries
       const lines = aicContext.split('\n')
       const startIdx = lines.findIndex(l => l.includes('THE FOLLOWING ARE THE ONLY SUPPLEMENTS'))
       const endIdx   = lines.findIndex(l => l.includes('FORMAT YOUR ANSWER'))
@@ -289,31 +294,48 @@ export async function POST(req: NextRequest) {
         const bioStart = lines.findIndex(l => l.includes('=== SUPPLEMENT RECOMMENDATION'))
         const bio = lines.slice(bioStart + 1, startIdx).filter(Boolean).join('\n')
         const suppList = lines.slice(startIdx + 3, endIdx).filter(Boolean).join('\n')
-        const therapies = lines.find(l => l.startsWith('THERAPIES:')) ?? ''
-        const dietary   = lines.find(l => l.startsWith('DIETARY:')) ?? ''
-
+        const therLine = lines.find(l => l.startsWith('THERAPIES:')) ?? ''
+        const dietLine = lines.find(l => l.startsWith('DIETARY:')) ?? ''
         const directAnswer = [
           `Based on ${reportCtx ? reportCtx.split(',')[0] : 'this patient'}'s biomarkers:\n`,
           bio ? `📊 ${bio}\n` : '',
           '**RECOMMENDED AIC SUPPLEMENTS:**\n',
           suppList,
-          therapies ? `\n**THERAPIES:**\n${therapies.replace('THERAPIES:','').trim()}` : '',
-          dietary   ? `\n**DIETARY PROTOCOL:**\n${dietary.replace('DIETARY:','').trim()}` : '',
+          therLine ? `\n**THERAPIES:**\n${therLine.replace('THERAPIES:','').trim()}` : '',
+          dietLine ? `\n**DIETARY PROTOCOL:**\n${dietLine.replace('DIETARY:','').trim()}` : '',
           '\n⚠ These recommendations are from the CLP clinical database. Always review with the treating physician.',
         ].filter(Boolean).join('\n')
-
         return NextResponse.json({ reply: directAnswer })
       }
     }
 
-    // ── For all other queries: use Groq ────────────────────────────────────
+    // Build active supplement list from page context for filter queries
+    const activeSupps = (page_context?.data?.active_supplements as any[]) ?? []
+    const suppNames = activeSupps.map((s:any) => s.name || s.label).filter(Boolean)
+
+    const filterContext = filterTrig && suppNames.length > 0
+      ? `CURRENT SUPPLEMENT LIST ON PAGE (${suppNames.length} items):\n${suppNames.map((n:string,i:number) => `${i+1}. ${n}`).join('\n')}`
+      : ''
+
+    const filterInstruction = filterTrig
+      ? `The doctor wants to FILTER or PRIORITISE the supplement list. 
+Doctor's request: "${last}"
+${filterContext}
+- Remove any supplements the doctor flagged as allergies or contraindicated
+- Group remaining into: MUST KEEP, RECOMMENDED, CAN REMOVE
+- Give one clinical reason per supplement tied to this patient's biomarkers
+- Be specific — reference actual values (Leaky Gut: ${page_context?.data?.rych_index ?? '?'}, pathogens, etc.)
+- Do NOT repeat supplements the doctor said to remove`
+      : ''
+
     const system = [
-      'You are a clinical microbiome specialist for MicrobiomeRx. Be concise and precise.',
-      active_section ? `Doctor is viewing: ${active_section}` : '',
-      reportCtx || '',
-      (pageTrig && pageCtx) ? `PAGE DATA:\n${pageCtx.slice(0, 2000)}` : '',
-      aicContext ? aicContext.slice(0, 1500) : '',
+      'You are a senior clinical gut microbiome specialist at Clinic Living Plus. You assist doctors in reviewing specific patient cases.',
+      reportCtx ? `Patient: ${reportCtx}` : '',
+      page_context?.data ? `Rych Index: ${page_context.data.rych_index ?? '?'} | Conditions: ${(page_context.data.conditions_flagged as string[] ?? []).join(', ')}` : '',
+      filterInstruction || (pageTrig && pageCtx ? `PAGE DATA:\n${pageCtx.slice(0, 2000)}` : ''),
+      !filterTrig && aicContext ? aicContext.slice(0, 1500) : '',
       knowledgeCtx ? `KB:\n${knowledgeCtx.slice(0,600)}` : '',
+      'Answer ONLY about this specific patient. Never give generic advice.',
     ].filter(Boolean).join('\n\n')
 
     const response = await groq.chat.completions.create({

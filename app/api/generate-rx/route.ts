@@ -120,7 +120,7 @@ Gut microbiome species list (${species_list.length} species):
 ${species_list.join('\n')}`
 
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-20b',
       max_tokens: 4000,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
