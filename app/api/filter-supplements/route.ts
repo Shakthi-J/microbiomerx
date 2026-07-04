@@ -86,10 +86,15 @@ RULES:
 
 When you have enough information (usually 3-5 exchanges), say:
 "I have enough information now. READY TO FILTER"
+
+If the conversation already contains a previous READY TO FILTER section and the doctor asks to change something (e.g. "also remove X", "add Y back", "I forgot to mention allergy to Z"), immediately produce an updated filter with "READY TO FILTER" — do not ask more questions.
 Then on the next lines, for each supplement write:
 KEEP: [name] — [one sentence why]
 REMOVE: [name] — [one sentence why]
-OPTIONAL: [name] — [one sentence why]`,
+OPTIONAL: [name] — [one sentence why]
+
+IMPORTANT: If the conversation already contains a previous READY TO FILTER section and the doctor asks to change something (e.g. "also remove X", "add Y back", "I forgot to mention allergy to Z", "only keep essential"), immediately produce an updated filter — do not ask more questions. Just say "Updated based on your request. READY TO FILTER" and list all supplements again with the change applied.`,
+
           },
           ...conversationHistory,
         ],

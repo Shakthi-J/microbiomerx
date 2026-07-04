@@ -99,8 +99,6 @@ const QUICK_NOTES = [
   'already on probiotics','pregnancy — check safety','liver disease present','child patient',
 ]
 
-// Replace the entire FilterPanel function in review/page.tsx with this
-
 function FilterPanel({ supplements, onApply, onClose,
   persistedMessages, persistedResults, persistedPhase,
   onMessagesChange, onResultsChange, onPhaseChange,
@@ -116,30 +114,14 @@ function FilterPanel({ supplements, onApply, onClose,
   onPhaseChange: (p:'chat'|'results') => void
 }) {
   const [messages,  setMessagesLocal]  = useState(persistedMessages)
-  const [inputVal,  setInputVal]  = useState('')
-  const [loading,   setLoading]   = useState(false)
+  const [inputVal,  setInputVal]       = useState('')
+  const [loading,   setLoading]        = useState(false)
   const [results,   setResultsLocal]   = useState(persistedResults)
   const [phase,     setPhaseLocal]     = useState(persistedPhase)
-  const [applyTiers, setApplyTiers] = useState<Set<string>>(new Set(['must','recommended']))
+  const [applyTiers, setApplyTiers]   = useState<Set<string>>(new Set(['must','recommended']))
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Sync to parent
-  // Sync to parent
-  type Msg = {role:'ai'|'doctor';text:string}
-  const setMessages = (m: Msg[] | ((prev: Msg[]) => Msg[])) => {
-    const next = typeof m === 'function' ? m(messages) : m
-    setMessagesLocal(next); onMessagesChange(next)
-  }
-  const setResults = (r: FilterResult[] | ((prev: FilterResult[]) => FilterResult[])) => {
-    const next = typeof r === 'function' ? r(results) : r
-    setResultsLocal(next); onResultsChange(next)
-  }
-  const setPhase = (p: 'chat' | 'results') => {
-    setPhaseLocal(p); onPhaseChange(p)
-  }
-
-   // Only start conversation if no existing messages
-   useEffect(() => {
+  useEffect(() => {
     if (persistedMessages.length === 0) startConversation()
   }, [])
 
@@ -156,9 +138,11 @@ function FilterPanel({ supplements, onApply, onClose,
         body: JSON.stringify({ supplements, messages: [], mode: 'start' }),
       })
       const data = await res.json()
-      setMessages([{ role: 'ai', text: data.text }])
+      const m = [{ role: 'ai' as const, text: data.text }]
+      setMessagesLocal(m); onMessagesChange(m)
     } catch(e) {
-      setMessages([{ role: 'ai', text: 'Hi! I\'ve studied your supplement list. Tell me about the patient — any allergies, medications, or conditions I should know about?' }])
+      const m = [{ role: 'ai' as const, text: "Hi! I've studied your supplement list. Tell me about the patient — any allergies, medications, or conditions I should know about?" }]
+      setMessagesLocal(m); onMessagesChange(m)
     }
     setLoading(false)
   }
@@ -168,38 +152,45 @@ function FilterPanel({ supplements, onApply, onClose,
     const userMsg = inputVal.trim()
     setInputVal('')
 
-    // Add doctor message directly to local state first
     const newMessages = [...messages, { role: 'doctor' as const, text: userMsg }]
     setMessagesLocal(newMessages)
     onMessagesChange(newMessages)
+
+    // If results already exist, switch back to chat while processing
+    if (results.length > 0) {
+      setPhaseLocal('chat')
+      onPhaseChange('chat')
+    }
 
     setLoading(true)
     try {
       const res = await fetch('/api/filter-supplements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supplements, messages: newMessages, mode: 'chat' }),
+        body: JSON.stringify({
+          supplements,
+          messages: newMessages,
+          mode: 'chat',
+          hasExistingResults: results.length > 0,
+        }),
       })
       const data = await res.json()
       if (data.type === 'results') {
-        const withResult = data.text
-          ? [...newMessages, { role: 'ai' as const, text: data.text }]
-          : newMessages
-        setMessagesLocal(withResult)
-        onMessagesChange(withResult)
-        setResultsLocal(data.results || [])
-        onResultsChange(data.results || [])
-        setPhaseLocal('results')
-        onPhaseChange('results')
+        const followUp = { role: 'ai' as const, text: "Filter updated. Go back to chat anytime to refine — just tell me what to change." }
+        const withResult = [
+          ...(data.text ? [...newMessages, { role: 'ai' as const, text: data.text }] : newMessages),
+          followUp,
+        ]
+        setMessagesLocal(withResult); onMessagesChange(withResult)
+        setResultsLocal(data.results || []); onResultsChange(data.results || [])
+        setPhaseLocal('results'); onPhaseChange('results')
       } else {
         const withAi = [...newMessages, { role: 'ai' as const, text: data.text }]
-        setMessagesLocal(withAi)
-        onMessagesChange(withAi)
+        setMessagesLocal(withAi); onMessagesChange(withAi)
       }
     } catch(e) {
       const withErr = [...newMessages, { role: 'ai' as const, text: 'Sorry, something went wrong. Please try again.' }]
-      setMessagesLocal(withErr)
-      onMessagesChange(withErr)
+      setMessagesLocal(withErr); onMessagesChange(withErr)
     }
     setLoading(false)
   }
@@ -230,24 +221,26 @@ function FilterPanel({ supplements, onApply, onClose,
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {phase === 'results' && (
-            <button onClick={() => { setPhase('chat'); setResults([]) }}
-              style={{ fontSize:11, color:'#6B7280', background:'none', border:'1px solid #E2E8F0', borderRadius:6, padding:'3px 8px', cursor:'pointer' }}>
-              ← Back
+            <button onClick={() => { setPhaseLocal('chat'); onPhaseChange('chat') }}
+              style={{ fontSize:11, color:'#538A22', background:'#F2F9EC', border:'1px solid #C8E9A8', borderRadius:6, padding:'3px 8px', cursor:'pointer' }}>
+              ← Continue chat
             </button>
           )}
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#6B7280', lineHeight:1 }}>✕</button>
         </div>
       </div>
 
-      {/* Chat or Results */}
+      {/* Body */}
       <div style={{ flex:1, overflowY:'auto', padding:16 }}>
 
+        {/* Chat view */}
         {phase === 'chat' && (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {messages.map((m, i) => (
               <div key={i} style={{ display:'flex', justifyContent: m.role === 'doctor' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
-                  maxWidth:'85%', padding:'10px 13px', borderRadius: m.role === 'doctor' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  maxWidth:'85%', padding:'10px 13px',
+                  borderRadius: m.role === 'doctor' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                   background: m.role === 'doctor' ? '#538A22' : '#F2F9EC',
                   color: m.role === 'doctor' ? '#fff' : '#1A3207',
                   fontSize:13, lineHeight:1.55,
@@ -262,32 +255,34 @@ function FilterPanel({ supplements, onApply, onClose,
             ))}
             {loading && (
               <div style={{ display:'flex', justifyContent:'flex-start' }}>
-                <div style={{ padding:'10px 14px', background:'#F2F9EC', border:'1px solid #C8E9A8', borderRadius:'16px 16px 16px 4px' }}>
-                  <div style={{ display:'flex', gap:4 }}>
-                    {[0,1,2].map(i => (
-                      <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'#538A22', animation:`pulse 1s ${i*0.2}s infinite`, opacity:0.6 }} />
-                    ))}
-                  </div>
+                <div style={{ padding:'10px 14px', background:'#F2F9EC', border:'1px solid #C8E9A8', borderRadius:'16px 16px 16px 4px', display:'flex', gap:4 }}>
+                  {[0,1,2].map(i => (
+                    <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'#538A22',
+                      animation:`blink 1s ${i*0.2}s infinite ease-in-out` }} />
+                  ))}
                 </div>
               </div>
             )}
-            <style>{`@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}`}</style>
+            <style>{`@keyframes blink{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}`}</style>
             <div ref={bottomRef} />
           </div>
         )}
 
+        {/* Results view */}
         {phase === 'results' && (
           <div>
             <div style={{ background:'#F2F9EC', border:'1px solid #C8E9A8', borderRadius:10, padding:'10px 12px', marginBottom:10, fontSize:12, color:'#3D6B16', lineHeight:1.5 }}>
               Based on our conversation, here's the filtered prescription:
             </div>
+
+            {/* Tier selector */}
             <div style={{ marginBottom:14 }}>
-              <p style={{ fontSize:11, color:'#6B7280', marginBottom:6 }}>Apply tiers to prescription:</p>
+              <p style={{ fontSize:11, color:'#6B7280', marginBottom:6 }}>Select tiers to apply to prescription:</p>
               <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                 {[
-                  {key:'must', label:'Essential', bg:'#F0FDF4', text:'#15803D', border:'#BBF7D0'},
-                  {key:'recommended', label:'Recommended', bg:'#EFF6FF', text:'#1D4ED8', border:'#BFDBFE'},
-                  {key:'optional', label:'Optional', bg:'#F8FAFC', text:'#64748B', border:'#E2E8F0'},
+                  { key:'must',        label:'Essential',   bg:'#F0FDF4', text:'#15803D', border:'#BBF7D0' },
+                  { key:'recommended', label:'Recommended', bg:'#EFF6FF', text:'#1D4ED8', border:'#BFDBFE' },
+                  { key:'optional',    label:'Optional',    bg:'#F8FAFC', text:'#64748B', border:'#E2E8F0' },
                 ].map(t => {
                   const active = applyTiers.has(t.key)
                   return (
@@ -298,7 +293,7 @@ function FilterPanel({ supplements, onApply, onClose,
                         return next
                       })
                     }}
-                    style={{ fontSize:11, fontWeight:600, padding:'4px 10px', borderRadius:20, cursor:'pointer', transition:'all .15s',
+                    style={{ fontSize:11, fontWeight:600, padding:'4px 10px', borderRadius:20, cursor:'pointer',
                       background: active ? t.bg : '#fff', color: active ? t.text : '#9CA3AF',
                       border: `1px solid ${active ? t.border : '#E2E8F0'}` }}>
                       {active ? '✓ ' : ''}{t.label} ({grouped[t.key as keyof typeof grouped]?.length || 0})
@@ -307,14 +302,15 @@ function FilterPanel({ supplements, onApply, onClose,
                 })}
               </div>
             </div>
-            
+
             {TIERS.map(t => {
               const items = grouped[t.key]
               if (!items.length) return null
               return (
                 <div key={t.key} style={{ marginBottom:14 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
-                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, background:t.bg, color:t.text, border:`1px solid ${t.border}` }}>{t.label}</span>
+                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20,
+                      background:t.bg, color:t.text, border:`1px solid ${t.border}` }}>{t.label}</span>
                     <span style={{ fontSize:11, color:'#9CA3AF' }}>{items.length}</span>
                   </div>
                   {items.map((r, i) => (
@@ -330,30 +326,28 @@ function FilterPanel({ supplements, onApply, onClose,
         )}
       </div>
 
-      {/* Input or Apply button */}
+      {/* Footer */}
       <div style={{ padding:'12px 16px', borderTop:'1px solid #E2E8F0', flexShrink:0 }}>
         {phase === 'chat' ? (
           <div style={{ display:'flex', gap:8 }}>
             <input
               value={inputVal}
               onChange={e => setInputVal(e.target.value)}
-              onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey) { sendMessage(); e.preventDefault() } }}
+              onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){sendMessage();e.preventDefault()} }}
               placeholder="Type your answer or ask a question…"
               disabled={loading}
               autoFocus
-              style={{ flex:1, fontSize:13, padding:'9px 12px', border:'1px solid #E2E8F0', borderRadius:10, outline:'none', background: loading ? '#F8FAFC' : '#fff' }}
+              style={{ flex:1, fontSize:13, padding:'9px 12px', border:'1px solid #E2E8F0', borderRadius:10, outline:'none', background:loading?'#F8FAFC':'#fff' }}
             />
-            <button
-              onClick={sendMessage}
-              disabled={!inputVal.trim() || loading}
-              style={{ padding:'9px 14px', background: inputVal.trim() && !loading ? '#538A22' : '#E2E8F0', color: inputVal.trim() && !loading ? '#fff' : '#9CA3AF', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor: inputVal.trim() && !loading ? 'pointer' : 'default', flexShrink:0 }}>
+            <button onClick={sendMessage} disabled={!inputVal.trim()||loading}
+              style={{ padding:'9px 16px', background:inputVal.trim()&&!loading?'#538A22':'#E2E8F0', color:inputVal.trim()&&!loading?'#fff':'#9CA3AF', border:'none', borderRadius:10, fontSize:15, fontWeight:600, cursor:inputVal.trim()&&!loading?'pointer':'default', flexShrink:0 }}>
               →
             </button>
           </div>
         ) : (
           <button
-          onClick={() => onApply(results.filter(r => r.tier === 'remove' || applyTiers.has(r.tier)))}
-          style={{ width:'100%', padding:'11px 0', background:'#538A22', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+            onClick={() => onApply(results.filter(r => r.tier === 'remove' || applyTiers.has(r.tier)))}
+            style={{ width:'100%', padding:'11px 0', background:'#538A22', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer' }}>
             ✓ Apply filter to prescription
           </button>
         )}
@@ -361,7 +355,6 @@ function FilterPanel({ supplements, onApply, onClose,
     </div>
   )
 }
-
 // ─────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────
@@ -715,7 +708,7 @@ export default function DoctorReviewPage() {
     setFilterSummary(`${must} essential · ${rec} recommended · ${rem} removed`)
     setFilterApplied(true); setShowFilter(false)
   }, [])
-  
+
   const buildPayload = () => ({ sections, clinical_impression:clinicalImpression, doctor_notes:doctorNotes, rules_version:'v2.0.0', saved_at:new Date().toISOString() })
 
   const saveDraft = async () => {
