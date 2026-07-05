@@ -10,8 +10,8 @@ const PAGE_TRIGGERS = ['this page','the page','look at','what does this','what a
 const KB_TRIGGERS   = ['supplement','supplements','recommend','recommendation','what to give','which product','aic','therapy','therapies','dietary','diet plan','protocol','treatment plan','what can be given','dose','dosage','phase 1','phase 2','phase 3','what should i prescribe','prescription','what supplement','plan for this','treatment for','what do i give']
 // ADD after KB_TRIGGERS:
 const FILTER_TRIGGERS = ['filter', 'narrow down', 'reduce', 'prioritise', 'prioritize', 'which ones', 'top supplements', 'most important', 'cut down', 'allergy', 'avoid', 'remove', 'skip', 'not suitable']
-
 const isFilterQuery = (t: string) => FILTER_TRIGGERS.some(w => t.toLowerCase().includes(w))
+
 
 const isPageQuery = (t: string) => PAGE_TRIGGERS.some(w => t.toLowerCase().includes(w))
 const isKbQuery   = (t: string) => KB_TRIGGERS.some(w => t.toLowerCase().includes(w))

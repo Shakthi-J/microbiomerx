@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const knowledgeContext = chunks.map((c: any) => c.content).join('\n\n---\n\n')
 
   const response = await groq.chat.completions.create({
-    model: 'openai/gpt-oss-20b',
+    model: 'llama-3.3-70b-versatile',
     max_tokens: 2000,
     messages: [
       {

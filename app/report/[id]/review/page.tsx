@@ -6,9 +6,6 @@ import { useSectionReport } from '@/lib/sectionPage'
 import { useParams, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
-// ─────────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────────
 type ItemStatus = 'kb' | 'modified' | 'added' | 'removed'
 interface EditableItem {
   key: string; label: string; aicProduct?: string
@@ -24,11 +21,16 @@ interface ReportSummary {
   marker_count: number; conditions_flagged: string[]
   contraindication_alerts: Array<{ marker: string; alert: string; severity: string }>
 }
-interface FilterResult { name: string; tier: 'must' | 'recommended' | 'optional' | 'remove'; reason: string }
 
-// ─────────────────────────────────────────────────────────────────
-// PHASE GROUPING
-// ─────────────────────────────────────────────────────────────────
+interface FilterResult {
+  name: string
+  tier: 'must' | 'recommended' | 'optional' | 'remove'
+  reason: string
+  new?: boolean
+  detail?: string
+  phase?: string
+}
+
 const PHASE_ORDER = ['Phase 1', 'Phase 1+2', 'Phase 2', 'Phase 3']
 const PHASE_STYLE: Record<string, { bg: string; text: string; border: string }> = {
   'Phase 1':   { bg: '#538A22', text: '#fff',    border: '#538A22' },
@@ -79,26 +81,8 @@ function PhaseDivider({ phase }: { phase: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// FILTER PANEL
+// FILTER PANEL — conversational AI
 // ─────────────────────────────────────────────────────────────────
-const FILTER_QS = [
-  { id:'q1', label:'1 of 5', title:'Primary treatment goal for this patient', type:'single',
-    opts:['Infection / pathogen clearance','Gut repair and leaky gut healing','Microbiome diversity restoration','Anti-inflammatory and immune support','Nutritional deficiency correction','Full comprehensive protocol'] },
-  { id:'q2', label:'2 of 5', title:'Max supplements the patient can manage daily', type:'single',
-    opts:['1–4 (minimal, must-haves only)','5–8 (moderate)','9–14 (committed)','15+ (full protocol)'] },
-  { id:'q3', label:'3 of 5', title:'Active conditions present (select all)', type:'multi',
-    opts:['Bacterial / parasitic infection','Leaky gut / intestinal permeability','Nutritional deficiency confirmed','Constipation or poor motility','Systemic inflammation or immune issues','Mitochondrial / energy dysfunction','Histamine sensitivity','None of the above'] },
-  { id:'q4', label:'4 of 5', title:'Patient dietary preference', type:'single',
-    opts:['No restrictions','Vegetarian (dairy/eggs ok)','Vegan (strict plant-based)','Not confirmed'] },
-  { id:'q5', label:'5 of 5', title:'Where is the patient in treatment?', type:'single',
-    opts:['Just starting — Phase 1 only','Phase 1 core + selective Phase 2','Full Phase 1 and Phase 2','Phase 2 and 3 maintenance'] },
-]
-const QUICK_NOTES = [
-  'avoid Ox Bile products','patient has kidney disease','Phase 1 only for now',
-  'budget conscious patient','elderly patient — start slow','severe infection — be aggressive',
-  'already on probiotics','pregnancy — check safety','liver disease present','child patient',
-]
-
 function FilterPanel({ supplements, onApply, onClose,
   persistedMessages, persistedResults, persistedPhase,
   onMessagesChange, onResultsChange, onPhaseChange,
@@ -112,17 +96,22 @@ function FilterPanel({ supplements, onApply, onClose,
   onMessagesChange: (m:{role:'ai'|'doctor';text:string}[]) => void
   onResultsChange: (r:FilterResult[]) => void
   onPhaseChange: (p:'chat'|'results') => void
-}) {
-  const [messages,  setMessagesLocal]  = useState(persistedMessages)
-  const [inputVal,  setInputVal]       = useState('')
-  const [loading,   setLoading]        = useState(false)
-  const [results,   setResultsLocal]   = useState(persistedResults)
-  const [phase,     setPhaseLocal]     = useState(persistedPhase)
+}): React.ReactElement {
+  const [messages,   setMessagesLocal] = useState(persistedMessages)
+  const [inputVal,   setInputVal]      = useState('')
+  const [loading,    setLoading]       = useState(false)
+  const [results,    setResultsLocal]  = useState(persistedResults)
+  const [phase,      setPhaseLocal]    = useState(persistedPhase)
   const [applyTiers, setApplyTiers]   = useState<Set<string>>(new Set(['must','recommended']))
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const bottomRef  = useRef<HTMLDivElement>(null)
+  const startedRef = useRef(false)
 
   useEffect(() => {
-    if (persistedMessages.length === 0) startConversation()
+    if (persistedMessages.length > 0) return
+    if (startedRef.current) return
+    startedRef.current = true
+    const t = setTimeout(() => startConversation(), 50)
+    return () => { clearTimeout(t) }
   }, [])
 
   useEffect(() => {
@@ -138,10 +127,10 @@ function FilterPanel({ supplements, onApply, onClose,
         body: JSON.stringify({ supplements, messages: [], mode: 'start' }),
       })
       const data = await res.json()
-      const m = [{ role: 'ai' as const, text: data.text }]
+      const m = [{ role: 'ai' as const, text: data.text || "Hi! Tell me about the patient — any allergies, medications, or conditions I should know about?" }]
       setMessagesLocal(m); onMessagesChange(m)
     } catch(e) {
-      const m = [{ role: 'ai' as const, text: "Hi! I've studied your supplement list. Tell me about the patient — any allergies, medications, or conditions I should know about?" }]
+      const m = [{ role: 'ai' as const, text: "Hi! I've studied your supplement list. Tell me about the patient — any allergies, medications, or conditions?" }]
       setMessagesLocal(m); onMessagesChange(m)
     }
     setLoading(false)
@@ -151,36 +140,21 @@ function FilterPanel({ supplements, onApply, onClose,
     if (!inputVal.trim() || loading) return
     const userMsg = inputVal.trim()
     setInputVal('')
-
     const newMessages = [...messages, { role: 'doctor' as const, text: userMsg }]
     setMessagesLocal(newMessages)
     onMessagesChange(newMessages)
-
-    // If results already exist, switch back to chat while processing
-    if (results.length > 0) {
-      setPhaseLocal('chat')
-      onPhaseChange('chat')
-    }
-
+    if (results.length > 0) { setPhaseLocal('chat'); onPhaseChange('chat') }
     setLoading(true)
     try {
       const res = await fetch('/api/filter-supplements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          supplements,
-          messages: newMessages,
-          mode: 'chat',
-          hasExistingResults: results.length > 0,
-        }),
+        body: JSON.stringify({ supplements, messages: newMessages, mode: 'chat', hasExistingResults: results.length > 0 }),
       })
       const data = await res.json()
       if (data.type === 'results') {
-        const followUp = { role: 'ai' as const, text: "Filter updated. Go back to chat anytime to refine — just tell me what to change." }
-        const withResult = [
-          ...(data.text ? [...newMessages, { role: 'ai' as const, text: data.text }] : newMessages),
-          followUp,
-        ]
+        const followUp = { role: 'ai' as const, text: "Filter updated. Click '← Continue chat' anytime to refine further." }
+        const withResult = [...(data.text ? [...newMessages, { role: 'ai' as const, text: data.text }] : newMessages), followUp]
         setMessagesLocal(withResult); onMessagesChange(withResult)
         setResultsLocal(data.results || []); onResultsChange(data.results || [])
         setPhaseLocal('results'); onPhaseChange('results')
@@ -210,8 +184,6 @@ function FilterPanel({ supplements, onApply, onClose,
 
   return (
     <div style={{ position:'fixed', top:0, right:0, bottom:0, width:440, background:'#fff', borderLeft:'1px solid #E2E8F0', zIndex:50, display:'flex', flexDirection:'column', boxShadow:'-4px 0 24px rgba(0,0,0,.08)' }}>
-
-      {/* Header */}
       <div style={{ padding:'14px 16px', borderBottom:'1px solid #E2E8F0', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#F2F9EC', flexShrink:0 }}>
         <div>
           <p style={{ fontSize:13, fontWeight:600, color:'#1A3207', margin:0 }}>🧬 AI Supplement Filter</p>
@@ -226,14 +198,17 @@ function FilterPanel({ supplements, onApply, onClose,
               ← Continue chat
             </button>
           )}
+          {phase === 'chat' && results.length > 0 && (
+            <button onClick={() => { setPhaseLocal('results'); onPhaseChange('results') }}
+              style={{ fontSize:11, color:'#1D4ED8', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:6, padding:'3px 8px', cursor:'pointer' }}>
+              View results →
+            </button>
+          )}
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#6B7280', lineHeight:1 }}>✕</button>
         </div>
       </div>
 
-      {/* Body */}
       <div style={{ flex:1, overflowY:'auto', padding:16 }}>
-
-        {/* Chat view */}
         {phase === 'chat' && (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {messages.map((m, i) => (
@@ -246,9 +221,7 @@ function FilterPanel({ supplements, onApply, onClose,
                   fontSize:13, lineHeight:1.55,
                   border: m.role === 'ai' ? '1px solid #C8E9A8' : 'none',
                 }}>
-                  {m.role === 'ai' && (
-                    <p style={{ fontSize:10, fontWeight:600, color:'#538A22', margin:'0 0 4px', textTransform:'uppercase', letterSpacing:.5 }}>AI Pharmacist</p>
-                  )}
+                  {m.role === 'ai' && <p style={{ fontSize:10, fontWeight:600, color:'#538A22', margin:'0 0 4px', textTransform:'uppercase', letterSpacing:.5 }}>AI Pharmacist</p>}
                   {m.text}
                 </div>
               </div>
@@ -256,10 +229,7 @@ function FilterPanel({ supplements, onApply, onClose,
             {loading && (
               <div style={{ display:'flex', justifyContent:'flex-start' }}>
                 <div style={{ padding:'10px 14px', background:'#F2F9EC', border:'1px solid #C8E9A8', borderRadius:'16px 16px 16px 4px', display:'flex', gap:4 }}>
-                  {[0,1,2].map(i => (
-                    <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'#538A22',
-                      animation:`blink 1s ${i*0.2}s infinite ease-in-out` }} />
-                  ))}
+                  {[0,1,2].map(i => <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'#538A22', animation:`blink 1s ${i*0.2}s infinite ease-in-out` }} />)}
                 </div>
               </div>
             )}
@@ -267,50 +237,36 @@ function FilterPanel({ supplements, onApply, onClose,
             <div ref={bottomRef} />
           </div>
         )}
-
-        {/* Results view */}
         {phase === 'results' && (
           <div>
             <div style={{ background:'#F2F9EC', border:'1px solid #C8E9A8', borderRadius:10, padding:'10px 12px', marginBottom:10, fontSize:12, color:'#3D6B16', lineHeight:1.5 }}>
               Based on our conversation, here's the filtered prescription:
             </div>
-
-            {/* Tier selector */}
             <div style={{ marginBottom:14 }}>
-              <p style={{ fontSize:11, color:'#6B7280', marginBottom:6 }}>Select tiers to apply to prescription:</p>
+              <p style={{ fontSize:11, color:'#6B7280', marginBottom:6 }}>Select tiers to apply:</p>
               <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                 {[
-                  { key:'must',        label:'Essential',   bg:'#F0FDF4', text:'#15803D', border:'#BBF7D0' },
+                  { key:'must', label:'Essential', bg:'#F0FDF4', text:'#15803D', border:'#BBF7D0' },
                   { key:'recommended', label:'Recommended', bg:'#EFF6FF', text:'#1D4ED8', border:'#BFDBFE' },
-                  { key:'optional',    label:'Optional',    bg:'#F8FAFC', text:'#64748B', border:'#E2E8F0' },
+                  { key:'optional', label:'Optional', bg:'#F8FAFC', text:'#64748B', border:'#E2E8F0' },
                 ].map(t => {
                   const active = applyTiers.has(t.key)
                   return (
-                    <button key={t.key} onClick={() => {
-                      setApplyTiers(prev => {
-                        const next = new Set(prev)
-                        next.has(t.key) ? next.delete(t.key) : next.add(t.key)
-                        return next
-                      })
-                    }}
-                    style={{ fontSize:11, fontWeight:600, padding:'4px 10px', borderRadius:20, cursor:'pointer',
-                      background: active ? t.bg : '#fff', color: active ? t.text : '#9CA3AF',
-                      border: `1px solid ${active ? t.border : '#E2E8F0'}` }}>
+                    <button key={t.key} onClick={() => { setApplyTiers(prev => { const next = new Set(prev); next.has(t.key) ? next.delete(t.key) : next.add(t.key); return next }) }}
+                      style={{ fontSize:11, fontWeight:600, padding:'4px 10px', borderRadius:20, cursor:'pointer', background:active?t.bg:'#fff', color:active?t.text:'#9CA3AF', border:`1px solid ${active?t.border:'#E2E8F0'}` }}>
                       {active ? '✓ ' : ''}{t.label} ({grouped[t.key as keyof typeof grouped]?.length || 0})
                     </button>
                   )
                 })}
               </div>
             </div>
-
             {TIERS.map(t => {
               const items = grouped[t.key]
               if (!items.length) return null
               return (
                 <div key={t.key} style={{ marginBottom:14 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
-                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20,
-                      background:t.bg, color:t.text, border:`1px solid ${t.border}` }}>{t.label}</span>
+                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, background:t.bg, color:t.text, border:`1px solid ${t.border}` }}>{t.label}</span>
                     <span style={{ fontSize:11, color:'#9CA3AF' }}>{items.length}</span>
                   </div>
                   {items.map((r, i) => (
@@ -326,27 +282,20 @@ function FilterPanel({ supplements, onApply, onClose,
         )}
       </div>
 
-      {/* Footer */}
       <div style={{ padding:'12px 16px', borderTop:'1px solid #E2E8F0', flexShrink:0 }}>
         {phase === 'chat' ? (
           <div style={{ display:'flex', gap:8 }}>
-            <input
-              value={inputVal}
-              onChange={e => setInputVal(e.target.value)}
+            <input value={inputVal} onChange={e => setInputVal(e.target.value)}
               onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){sendMessage();e.preventDefault()} }}
-              placeholder="Type your answer or ask a question…"
-              disabled={loading}
-              autoFocus
-              style={{ flex:1, fontSize:13, padding:'9px 12px', border:'1px solid #E2E8F0', borderRadius:10, outline:'none', background:loading?'#F8FAFC':'#fff' }}
-            />
+              placeholder="Type your answer or ask a question…" disabled={loading} autoFocus
+              style={{ flex:1, fontSize:13, padding:'9px 12px', border:'1px solid #E2E8F0', borderRadius:10, outline:'none', background:loading?'#F8FAFC':'#fff' }} />
             <button onClick={sendMessage} disabled={!inputVal.trim()||loading}
               style={{ padding:'9px 16px', background:inputVal.trim()&&!loading?'#538A22':'#E2E8F0', color:inputVal.trim()&&!loading?'#fff':'#9CA3AF', border:'none', borderRadius:10, fontSize:15, fontWeight:600, cursor:inputVal.trim()&&!loading?'pointer':'default', flexShrink:0 }}>
               →
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => onApply(results.filter(r => r.tier === 'remove' || applyTiers.has(r.tier)))}
+          <button onClick={() => onApply(results.filter(r => r.tier === 'remove' || applyTiers.has(r.tier)))}
             style={{ width:'100%', padding:'11px 0', background:'#538A22', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer' }}>
             ✓ Apply filter to prescription
           </button>
@@ -355,6 +304,7 @@ function FilterPanel({ supplements, onApply, onClose,
     </div>
   )
 }
+
 // ─────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────
@@ -538,10 +488,10 @@ export default function DoctorReviewPage() {
   const reportId = params.id as string
   const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   const { report: shellReport, loading: shellLoading } = useSectionReport(reportId)
+
   const [filterMessages, setFilterMessages] = useState<{role:'ai'|'doctor';text:string}[]>([])
   const [filterResults,  setFilterResults]  = useState<FilterResult[]>([])
   const [filterPhase,    setFilterPhase]    = useState<'chat'|'results'>('chat')
-
   const [loading,    setLoading]    = useState(true)
   const [saving,     setSaving]     = useState(false)
   const [approving,  setApproving]  = useState(false)
@@ -666,46 +616,60 @@ export default function DoctorReviewPage() {
     setSections(prev => ({ ...prev, [section]:prev[section].filter(item=>item.key!==key) }))
   }, [])
 
-  
   const applyFilter = useCallback((results: FilterResult[]) => {
     setSections(prev => {
-      const updated = prev.supplements.map(item => {
-        const name = (item.aicProduct||item.label||'').toLowerCase()
-        const match = results.find(r =>
-          name.includes(r.name.toLowerCase().split('/')[0].trim()) ||
-          r.name.toLowerCase().split('/')[0].trim().includes(name.split(' ')[0])
-        )
-        if (!match) return item
-        // remove tier always removes
-        if (match.tier === 'remove') return {...item, status:'removed' as ItemStatus}
-        // must/recommended/optional that are in results = keep (restore if was removed)
-        return {...item, status: item.status === 'removed' ? 'kb' as ItemStatus : item.status}
-      }) 
+      const existingResults = results.filter(r => !r.new)
+      const newResults      = results.filter(r => r.new && r.tier !== 'remove')
 
-      // Now remove anything NOT in the keep list (i.e. not matched at all and not must/rec)
-      const keepNames = new Set(
-        results
-          .filter(r => r.tier !== 'remove')
-          .map(r => r.name.toLowerCase().split('/')[0].trim())
-      )
-      const finalUpdated = updated.map(item => {
-        const name = (item.aicProduct||item.label||'').toLowerCase()
-        const inKeepList = [...keepNames].some(k => name.includes(k) || k.includes(name.split(' ')[0]))
-        const isRemoved = results.find(r => {
-          const rn = r.name.toLowerCase().split('/')[0].trim()
-          return (name.includes(rn) || rn.includes(name.split(' ')[0])) && r.tier === 'remove'
+      const norm = (s?: string) => (s || '').toLowerCase().trim()
+      // A result name can be "Label / AICProduct" or just "Label" — compare
+      // against every half, since the model echoes back whichever form
+      // was in the original supplement list.
+      const partsOf = (s: string) => s.split('/').map(p => norm(p)).filter(Boolean)
+
+      const updatedExisting = prev.supplements.map(item => {
+        // Check BOTH item.label and item.aicProduct — previously this only
+        // checked (item.aicProduct || item.label), which silently failed to
+        // match any item whose result name led with the label half
+        // (e.g. "Triphala / Happy Bowels" vs. an item keyed only by
+        // aicProduct "Happy Bowels"), causing correctly-KEPT items to be
+        // marked removed since no match was ever found for them.
+        const itemNames = [norm(item.label), norm(item.aicProduct)].filter(Boolean)
+        const matchedResult = existingResults.find(r => {
+          const resultParts = partsOf(r.name)
+          return itemNames.some(iName =>
+            resultParts.some(rPart => iName.includes(rPart) || rPart.includes(iName))
+          )
         })
-        if (isRemoved) return {...item, status:'removed' as ItemStatus}
-        if (!inKeepList && results.length > 0) return {...item, status:'removed' as ItemStatus}
+        if (matchedResult?.tier === 'remove') return {...item, status:'removed' as ItemStatus}
+        if (!matchedResult && existingResults.length > 0) return {...item, status:'removed' as ItemStatus}
+        if (matchedResult && item.status === 'removed') return {...item, status:'kb' as ItemStatus}
         return item
       })
 
-      return { ...prev, supplements: finalUpdated }
+      // Avoid adding a duplicate if a "new" item actually matches something already on the list
+      const existingNames = new Set(
+        updatedExisting.flatMap(i => [norm(i.label), norm(i.aicProduct)].filter(Boolean))
+      )
+      const brandNewItems: EditableItem[] = newResults
+        .filter(r => !partsOf(r.name).some(p => existingNames.has(p)))
+        .map((r, i) => ({
+          key: `filter_added_${Date.now()}_${i}`,
+          label: r.name,
+          detail: r.detail || '',
+          rationale: r.reason,
+          doctorNote: '',
+          status: 'added' as ItemStatus,
+          phase: r.phase || 'Phase 2',
+        }))
+
+      return { ...prev, supplements: [...updatedExisting, ...brandNewItems] }
     })
     const must = results.filter(r=>r.tier==='must').length
     const rec  = results.filter(r=>r.tier==='recommended').length
     const rem  = results.filter(r=>r.tier==='remove').length
-    setFilterSummary(`${must} essential · ${rec} recommended · ${rem} removed`)
+    const added = results.filter(r=>r.new && r.tier!=='remove').length
+    setFilterSummary(`${must} essential · ${rec} recommended · ${rem} removed${added ? ` · ${added} added` : ''}`)
     setFilterApplied(true); setShowFilter(false)
   }, [])
 
@@ -774,7 +738,6 @@ export default function DoctorReviewPage() {
     <SectionPageShell reportId={reportId} section="review" label="Doctor Review" patientName={report.patient_name} pageData={pageData}>
     <div className="min-h-screen bg-slate-50 pb-20">
 
-      {/* Top bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -827,7 +790,6 @@ export default function DoctorReviewPage() {
             </div>
           )}
 
-          {/* Filter applied banner */}
           {filterApplied&&(
             <div style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, padding:'8px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ fontSize:12, color:'#1D4ED8' }}>🧬 Filter applied: {filterSummary}</span>
@@ -835,7 +797,6 @@ export default function DoctorReviewPage() {
             </div>
           )}
 
-          {/* SUPPLEMENTS */}
           <Section title="Supplements" icon="💊" count={activeSupps.length} onAddItem={()=>addItem('supplements')} disabled={!isEditable}
             extraAction={isEditable?(
               <button onClick={()=>setShowFilter(true)}
@@ -844,19 +805,19 @@ export default function DoctorReviewPage() {
               </button>
             ):undefined}>
             {sections.supplements.length===0
-              ?<p className="text-xs text-slate-400 italic text-center py-4">No supplements generated. Run the recommendations engine first.</p>
+              ?<p className="text-xs text-slate-400 italic text-center py-4">No supplements generated.</p>
               :groupByPhase(sections.supplements).map(({phase,items})=>(
                 <div key={phase}>
                   <PhaseDivider phase={phase}/>
                   {items.map(item=>(
                     <div key={item.key} className="mb-3">
                       <ItemCard item={item} isFlashing={flashKey===item.key}
-                        onToggle={key=>toggleItem('supplements',key)}
-                        onNoteChange={(key,note)=>updateNote('supplements',key,note)}
-                        onDetailChange={(key,detail)=>updateDetail('supplements',key,detail)}
-                        onLabelChange={(key,val)=>updateLabel('supplements',key,val)}
-                        onConfirmNew={key=>confirmNewItem('supplements',key)}
-                        onDiscard={key=>discardItem('supplements',key)}
+                        onToggle={(key:string)=>toggleItem('supplements',key)}
+                        onNoteChange={(key:string,note:string)=>updateNote('supplements',key,note)}
+                        onDetailChange={(key:string,detail:string)=>updateDetail('supplements',key,detail)}
+                        onLabelChange={(key:string,val:string)=>updateLabel('supplements',key,val)}
+                        onConfirmNew={(key:string)=>confirmNewItem('supplements',key)}
+                        onDiscard={(key:string)=>discardItem('supplements',key)}
                         disabled={!isEditable}/>
                     </div>
                   ))}
@@ -865,24 +826,22 @@ export default function DoctorReviewPage() {
             }
           </Section>
 
-          {/* THERAPIES */}
           <Section title="CLP Therapies" icon="⚗️" count={activeTherapies.length} onAddItem={()=>addItem('therapies')} disabled={!isEditable}>
             {sections.therapies.length===0
-              ?<p className="text-xs text-slate-400 italic text-center py-4">No therapies generated for this Rych tier.</p>
+              ?<p className="text-xs text-slate-400 italic text-center py-4">No therapies generated.</p>
               :sections.therapies.map(item=>(
                 <ItemCard key={item.key} item={item} isFlashing={flashKey===item.key}
-                  onToggle={key=>toggleItem('therapies',key)}
-                  onNoteChange={(key,note)=>updateNote('therapies',key,note)}
-                  onDetailChange={(key,detail)=>updateDetail('therapies',key,detail)}
-                  onLabelChange={(key,val)=>updateLabel('therapies',key,val)}
-                  onConfirmNew={key=>confirmNewItem('therapies',key)}
-                  onDiscard={key=>discardItem('therapies',key)}
+                  onToggle={(key:string)=>toggleItem('therapies',key)}
+                  onNoteChange={(key:string,note:string)=>updateNote('therapies',key,note)}
+                  onDetailChange={(key:string,detail:string)=>updateDetail('therapies',key,detail)}
+                  onLabelChange={(key:string,val:string)=>updateLabel('therapies',key,val)}
+                  onConfirmNew={(key:string)=>confirmNewItem('therapies',key)}
+                  onDiscard={(key:string)=>discardItem('therapies',key)}
                   disabled={!isEditable}/>
               ))
             }
           </Section>
 
-          {/* DIETARY */}
           <Section title="Dietary Protocol" icon="🥗" count={activeDietary.length} onAddItem={()=>addItem('dietary')} disabled={!isEditable}>
             {sections.dietary.length===0
               ?<p className="text-xs text-slate-400 italic text-center py-4">No dietary protocols generated.</p>
@@ -892,12 +851,12 @@ export default function DoctorReviewPage() {
                   {items.map(item=>(
                     <div key={item.key} className="mb-3">
                       <ItemCard item={item} isFlashing={flashKey===item.key}
-                        onToggle={key=>toggleItem('dietary',key)}
-                        onNoteChange={(key,note)=>updateNote('dietary',key,note)}
-                        onDetailChange={(key,detail)=>updateDetail('dietary',key,detail)}
-                        onLabelChange={(key,val)=>updateLabel('dietary',key,val)}
-                        onConfirmNew={key=>confirmNewItem('dietary',key)}
-                        onDiscard={key=>discardItem('dietary',key)}
+                        onToggle={(key:string)=>toggleItem('dietary',key)}
+                        onNoteChange={(key:string,note:string)=>updateNote('dietary',key,note)}
+                        onDetailChange={(key:string,detail:string)=>updateDetail('dietary',key,detail)}
+                        onLabelChange={(key:string,val:string)=>updateLabel('dietary',key,val)}
+                        onConfirmNew={(key:string)=>confirmNewItem('dietary',key)}
+                        onDiscard={(key:string)=>discardItem('dietary',key)}
                         disabled={!isEditable}/>
                     </div>
                   ))}
@@ -907,7 +866,6 @@ export default function DoctorReviewPage() {
           </Section>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-4">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">RX Summary</p>
@@ -945,7 +903,6 @@ export default function DoctorReviewPage() {
         </div>
       </div>
 
-      {/* Bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -955,10 +912,17 @@ export default function DoctorReviewPage() {
             {isEditMode&&saveStatus==='idle'&&<span className="text-xs text-amber-500 whitespace-nowrap">✏ Editing - re-approve to lock</span>}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={()=>{ sessionStorage.setItem(`rx_print_${reportId}`,JSON.stringify({sections,clinical_impression:clinicalImpression,doctor_notes:doctorNotes})); window.open(`/report/${reportId}/prescription-print`,'_blank') }} disabled={saving} className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              {saving?'Saving…':'Download'}
-            </button>
+          <button
+  onClick={async () => {
+    await saveDraft()
+    window.open(`/report/${reportId}/prescription-print`, '_blank')
+  }}
+  disabled={saving}
+  className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 flex items-center gap-1.5"
+>
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+  {saving ? 'Saving…' : 'Download'}
+</button>
             {isApproved&&!isEditMode&&<button onClick={()=>setIsEditMode(true)} className="px-3 py-2 text-xs font-medium rounded-lg border border-amber-400 text-amber-600 hover:bg-amber-50 flex items-center gap-1.5"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Edit RX</button>}
             {isEditMode&&<button onClick={()=>setIsEditMode(false)} className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-50">Cancel</button>}
             {isEditMode&&<button onClick={unlockForEdit} disabled={unlocking} className="px-3 py-2 text-xs font-medium rounded-lg border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-40">{unlocking?'Unlocking…':'🔓 Remove Approval'}</button>}
@@ -975,19 +939,18 @@ export default function DoctorReviewPage() {
     </div>
 
     {showFilter&&(
-  <FilterPanel
-    supplements={sections.supplements.filter(s=>s.status!=='removed')}
-    onApply={applyFilter}
-    onClose={()=>setShowFilter(false)}
-    persistedMessages={filterMessages}
-    persistedResults={filterResults}
-    persistedPhase={filterPhase}
-    onMessagesChange={setFilterMessages}
-    onResultsChange={setFilterResults}
-    onPhaseChange={setFilterPhase}
-  />
-)}
-
+      <FilterPanel
+        supplements={sections.supplements.filter(s=>s.status!=='removed')}
+        onApply={applyFilter}
+        onClose={()=>setShowFilter(false)}
+        persistedMessages={filterMessages}
+        persistedResults={filterResults}
+        persistedPhase={filterPhase}
+        onMessagesChange={setFilterMessages}
+        onResultsChange={setFilterResults}
+        onPhaseChange={setFilterPhase}
+      />
+    )}
     </SectionPageShell>
   )
 }

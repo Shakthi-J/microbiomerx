@@ -238,25 +238,14 @@ export default function PrescriptionPrintPage() {
       if(!rep){setError('Report not found');setLoading(false);return}
       const ro=rep.rules_output as any
 
-      const sk=`rx_print_${reportId}`, cached=sessionStorage.getItem(sk)
-      if(cached){
-        sessionStorage.removeItem(sk)
-        try{
-          const parsed=JSON.parse(cached)
-          const {data:rx}=await supabase.from('prescriptions')
-            .select('approved_at').eq('report_id',reportId).maybeSingle()
-          const d: PrescriptionData = {
-            patient_name:rep.patient_name||'Unknown',patient_age_sex:rep.patient_age_sex||'',
-            rych_index:Number(ro?.rych_index??0),rych_tier_label:ro?.rych_tier_label??'',
-            conditions_flagged:ro?.conditions_flagged??[],sections:parsed.sections,
-            clinical_impression:parsed.clinical_impression||'',doctor_notes:parsed.doctor_notes||'',
-            approved_at:rx?.approved_at??null,
-          }
-          setData(d)
-          initEditable(d)
-          setLoading(false);return
-        }catch{}
-      }
+      // Always read the live prescription from Supabase — this is the single
+      // source of truth. The review page's "Download" button now calls
+      // saveDraft() before opening this tab, so rx_data always reflects
+      // whatever is currently on screen (including any AI filter results).
+      // We deliberately do NOT use a one-shot sessionStorage handoff here:
+      // that approach breaks the moment this effect runs more than once
+      // (React Strict Mode in dev, a tab refresh, re-triggering window.print()),
+      // silently falling back to stale data with no visible error.
       const {data:rx}=await supabase.from('prescriptions')
         .select('rx_data,approved_at').eq('report_id',reportId).maybeSingle()
       const rd=rx?.rx_data as any
@@ -629,6 +618,39 @@ export default function PrescriptionPrintPage() {
                   border:'1px dashed #C8E9A8',borderRadius:6,padding:'4px 14px',cursor:'pointer'}}>
                 + Add medicine
               </button>
+            )}
+
+            {/* Dietary Protocol — was previously computed into dietaryItems
+                but never rendered anywhere in this page. */}
+            {dietaryItems.length > 0 && (
+              <>
+                <div className="rxh" style={{fontSize:24, marginTop:32, marginBottom:6}}></div>
+                {groupDietaryByPhase(dietaryItems).map(({phase, items}) => {
+                  const c = PHASE_STYLE[phase] ?? {bg:'#F2F9EC',text:'#538A22',border:'#C8E9A8'}
+                  return (
+                    <div key={phase}>
+                      <div className="rxpd">
+                        <div className="rxpl"/>
+                        <div className="rxpb" style={{background:c.bg,color:c.text,border:`1px solid ${c.border}`}}>{phase}</div>
+                        <div className="rxpl"/>
+                      </div>
+                      {items.map(item => (
+                        <div key={item.key} className="rxi">
+                          <div className="rxir">
+                            <div className="rxmed" style={{flex:1}}>
+                              <div className="mn">{item.label}</div>
+                              {item.detail && <div className="ms">{item.detail}</div>}
+                              {item.rationale && <div className="ms" style={{marginTop:4,color:'#555'}}>{item.rationale}</div>}
+                              {item.doctorNote && <div className="mno">📝 {item.doctorNote}</div>}
+                              {item.contraindications && <div className="mco">⚠ {item.contraindications}</div>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+              </>
             )}
 
             {/* Doctor signature */}
