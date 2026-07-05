@@ -295,9 +295,11 @@ export default function PrescriptionPrintPage() {
 
   const today   = fmtDate(new Date().toISOString())
   const grouped = groupByPhase(rxItems)
+  const groupedDietary = groupDietaryByPhase(dietaryItems)
   let n = 1
   const idx: Record<string,number> = {}
   for (const {items} of grouped) for (const item of items) idx[item.key] = n++
+  for (const {items} of groupedDietary) for (const item of items) idx[item.key] = n++
 
   const Logo=({h}:{h:number})=>(
     <img src="/logo.png" alt="CLP" style={{height:h,width:'auto'}}
@@ -621,11 +623,13 @@ export default function PrescriptionPrintPage() {
             )}
 
             {/* Dietary Protocol — was previously computed into dietaryItems
-                but never rendered anywhere in this page. */}
+                but never rendered anywhere in this page. Uses the exact same
+                row structure as the medicine rows above (rxi/rxir/rxno/rxmed)
+                and continues the same running number sequence. */}
             {dietaryItems.length > 0 && (
               <>
                 <div className="rxh" style={{fontSize:24, marginTop:32, marginBottom:6}}></div>
-                {groupDietaryByPhase(dietaryItems).map(({phase, items}) => {
+                {groupedDietary.map(({phase, items}) => {
                   const c = PHASE_STYLE[phase] ?? {bg:'#F2F9EC',text:'#538A22',border:'#C8E9A8'}
                   return (
                     <div key={phase}>
@@ -637,7 +641,8 @@ export default function PrescriptionPrintPage() {
                       {items.map(item => (
                         <div key={item.key} className="rxi">
                           <div className="rxir">
-                            <div className="rxmed" style={{flex:1}}>
+                            <div className="rxno">{idx[item.key]}.</div>
+                            <div className="rxmed">
                               <div className="mn">{item.label}</div>
                               {item.detail && <div className="ms">{item.detail}</div>}
                               {item.rationale && <div className="ms" style={{marginTop:4,color:'#555'}}>{item.rationale}</div>}
